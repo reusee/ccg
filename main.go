@@ -7,8 +7,8 @@ import (
 	"go/ast"
 	"go/format"
 	"go/token"
+	"io"
 	"log"
-	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/loader"
@@ -17,19 +17,12 @@ import (
 
 var (
 	pt = fmt.Printf
-
-	checkErr = func(desc string, err error) {
-		if err != nil {
-			log.Fatalf("%s error: %v", desc, err)
-		}
-	}
-
-	fromPkg       = flag.String("from", "", "package to read from")
-	typeParamsStr = flag.String("params", "", "types for argumentation")
-	renamesStr    = flag.String("renames", "", "comma-separated old=new pairs of rename spec")
 )
 
 func main() {
+	fromPkg := flag.String("from", "", "package to read from")
+	typeParamsStr := flag.String("params", "", "comma-separated param=arg pairs of parameterize spec")
+	renamesStr := flag.String("renames", "", "comma-separated old=new pairs of rename spec")
 	flag.Parse()
 
 	// check source package
@@ -41,14 +34,13 @@ func main() {
 	if len(*typeParamsStr) == 0 {
 		log.Fatalf("no type parameter specified")
 	}
-	params := strings.Split(*typeParamsStr, ",")
-	typeParams := map[string]string{
-		"T": params[0],
-	}
-	n := 1
-	for _, t := range params[1:] {
-		typeParams["T"+strconv.Itoa(n)] = t
-		n++
+	typeParams := map[string]string{}
+	for _, pairStr := range strings.Split(*typeParamsStr, ",") {
+		pair := strings.SplitN(pairStr, "=", 2)
+		if len(pair) != 2 {
+			log.Fatalf("invalid parameterize spec: %s", pairStr)
+		}
+		typeParams[pair[0]] = pair[1]
 	}
 
 	// check renames
@@ -63,12 +55,32 @@ func main() {
 		}
 	}
 
+	buf := new(bytes.Buffer)
+	Copy(Config{
+		From:    *fromPkg,
+		Params:  typeParams,
+		Renames: renames,
+		Writer:  buf,
+	})
+	pt("%s\n", buf.Bytes())
+}
+
+type Config struct {
+	From    string
+	Params  map[string]string
+	Renames map[string]string
+	Writer  io.Writer
+}
+
+func Copy(config Config) error {
 	// load package
-	var config loader.Config
-	config.Import(*fromPkg)
-	program, err := config.Load()
-	checkErr("load package", err)
-	info := program.Imported[*fromPkg]
+	var loadConf loader.Config
+	loadConf.Import(config.From)
+	program, err := loadConf.Load()
+	if err != nil {
+		return fmt.Errorf("ccg: load package %v", err)
+	}
+	info := program.Imported[config.From]
 
 	// remove type param declarations
 	for _, f := range info.Files {
@@ -79,7 +91,7 @@ func main() {
 				if decl.Tok == token.TYPE {
 					for _, spec := range decl.Specs {
 						if spec, ok := spec.(*ast.TypeSpec); ok {
-							if _, ok := typeParams[spec.Name.Name]; ok {
+							if _, ok := config.Params[spec.Name.Name]; ok {
 								continue decls
 							}
 						}
@@ -102,8 +114,8 @@ func main() {
 			objects[obj] = to
 		}
 	}
-	collectObjects(typeParams)
-	collectObjects(renames)
+	collectObjects(config.Params)
+	collectObjects(config.Renames)
 
 	// rename
 	rename := func(defs map[*ast.Ident]types.Object) {
@@ -124,8 +136,12 @@ func main() {
 	}
 
 	// output
-	buf := new(bytes.Buffer)
-	err = format.Node(buf, program.Fset, decls)
-	checkErr("format", err)
-	pt("%s\n", buf.Bytes())
+	if config.Writer != nil {
+		err = format.Node(config.Writer, program.Fset, decls)
+		if err != nil {
+			return fmt.Errorf("ccg: format output %v", err)
+		}
+	}
+
+	return nil
 }
