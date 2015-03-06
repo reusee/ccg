@@ -7,11 +7,13 @@ go get github.com/reusee/ccg/cmd/ccg
 ```
 
 # example
+
+### sorter
 ```
 ccg -from github.com/reusee/ccg/sorter -params T=[]byte -renames Sorter=BytesSorter
 ```
 output
-```
+```go
 type BytesSorter struct {
   Slice [][]byte
   Cmp   func(a, b []byte) bool
@@ -30,11 +32,12 @@ func (s BytesSorter) Swap(i, j int) {
 }
 ```
 
+### set
 ```
 ccg -from github.com/reusee/ccg/set -params T=string -renames Set=StrSet,New=NewStrSet -package foobar
 ```
 output
-```
+```go
 package foobar
 
 type StrSet map[string]struct{}
