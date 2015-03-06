@@ -18,6 +18,7 @@ func main() {
 	fromPkg := flag.String("from", "", "package to read from")
 	typeParamsStr := flag.String("params", "", "comma-separated param=arg pairs of parameterize spec")
 	renamesStr := flag.String("renames", "", "comma-separated old=new pairs of rename spec")
+	packageName := flag.String("package", "", "package name of output file")
 	flag.Parse()
 
 	// check source package
@@ -56,6 +57,7 @@ func main() {
 		Params:  typeParams,
 		Renames: renames,
 		Writer:  buf,
+		Package: *packageName,
 	})
 	pt("%s\n", buf.Bytes())
 }

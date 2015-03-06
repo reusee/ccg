@@ -1,6 +1,7 @@
 package ccg
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -10,6 +11,7 @@ import (
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
+	"golang.org/x/tools/imports"
 )
 
 var (
@@ -21,6 +23,7 @@ type Config struct {
 	Params  map[string]string
 	Renames map[string]string
 	Writer  io.Writer
+	Package string
 }
 
 func Copy(config Config) error {
@@ -88,9 +91,26 @@ func Copy(config Config) error {
 
 	// output
 	if config.Writer != nil {
-		err = format.Node(config.Writer, program.Fset, decls)
-		if err != nil {
-			return fmt.Errorf("ccg: format output %v", err)
+		if config.Package != "" { // output complete file
+			file := &ast.File{
+				Name:  ast.NewIdent(config.Package),
+				Decls: decls,
+			}
+			buf := new(bytes.Buffer)
+			err = format.Node(buf, program.Fset, file)
+			if err != nil {
+				return fmt.Errorf("ccg: format output %v", err)
+			}
+			bs, err := imports.Process("", buf.Bytes(), nil)
+			if err != nil {
+				return fmt.Errorf("ccg: format output %v", err)
+			}
+			config.Writer.Write(bs)
+		} else { // output decls only
+			err = format.Node(config.Writer, program.Fset, decls)
+			if err != nil {
+				return fmt.Errorf("ccg: format output %v", err)
+			}
 		}
 	}
 
