@@ -1,5 +1,5 @@
 # ccg
-copying code generation
+ccg generates codes from existing package as template, while replacing types and identifiers as needed.
 
 # install
 ```
