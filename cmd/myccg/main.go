@@ -2,7 +2,10 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
+	"io"
+	"log"
 	"os"
 
 	"github.com/reusee/ccg"
@@ -10,29 +13,51 @@ import (
 
 var (
 	pt = fmt.Printf
+
+	outputFile  = flag.String("output", "", "output file")
+	packageName = flag.String("package", "", "output package")
 )
 
+func init() {
+	flag.Parse()
+}
+
 func main() {
-	if len(os.Args) < 2 {
+	args := flag.Args()
+	if len(args) < 1 {
 		pt("usage: %s [command] [args...]\n", os.Args[0])
 		return
 	}
 
 	getArg := func(index int, usage string) string {
-		if len(os.Args) < index+1 {
+		if len(args) < index+1 {
 			pt("usage: %s %s\n", os.Args[0], usage)
 			os.Exit(-1)
 		}
-		return os.Args[index]
+		return args[index]
 	}
 
-	command := os.Args[1]
+	command := args[0]
 	switch command {
 	case "sorter":
 		usage := "sorter [type] [sorter type]"
-		t := getArg(2, usage)
-		sorterType := getArg(3, usage)
-		buf := new(bytes.Buffer)
+		t := getArg(1, usage)
+		sorterType := getArg(2, usage)
+		var writer io.Writer
+		if *outputFile != "" {
+			var err error
+			writer, err = os.Create(*outputFile)
+			if err != nil {
+				log.Fatalf("myccg: create file %s error: %v", *outputFile, err)
+			}
+			defer writer.(*os.File).Close()
+			if *packageName == "" {
+				main := "main"
+				packageName = &main
+			}
+		} else {
+			writer = new(bytes.Buffer)
+		}
 		ccg.Copy(ccg.Config{
 			From: "github.com/reusee/ccg/sorter",
 			Params: map[string]string{
@@ -41,9 +66,13 @@ func main() {
 			Renames: map[string]string{
 				"Sorter": sorterType,
 			},
-			Writer: buf,
+			Writer:  writer,
+			Package: *packageName,
 		})
-		pt("%s\n", buf.Bytes())
+		if *outputFile != "" {
+		} else {
+			pt("%s\n", writer.(*bytes.Buffer).Bytes())
+		}
 	default:
 		pt("unknown command: %s\n", command)
 		return
