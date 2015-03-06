@@ -29,3 +29,30 @@ func (s BytesSorter) Swap(i, j int) {
   s.Slice[i], s.Slice[j] = s.Slice[j], s.Slice[i]
 }
 ```
+
+```
+ccg -from github.com/reusee/ccg/set -params T=string -renames Set=StrSet,New=NewStrSet -package foobar
+```
+output
+```
+package foobar
+
+type StrSet map[string]struct{}
+
+func NewStrSet() StrSet {
+  return StrSet(make(map[string]struct{}))
+}
+
+func (s StrSet) Add(t string) {
+  s[t] = struct{}{}
+}
+
+func (s StrSet) Del(t string) {
+  delete(s, t)
+}
+
+func (s StrSet) In(t string) (ok bool) {
+  _, ok = s[t]
+  return
+}
+```
