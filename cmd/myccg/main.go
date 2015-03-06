@@ -29,7 +29,9 @@ func main() {
 	command := os.Args[1]
 	switch command {
 	case "sorter":
-		t := getArg(2, "sorter [type]")
+		usage := "sorter [type] [sorter type]"
+		t := getArg(2, usage)
+		sorterType := getArg(3, usage)
 		buf := new(bytes.Buffer)
 		ccg.Copy(ccg.Config{
 			From: "github.com/reusee/ccg/sorter",
@@ -37,7 +39,7 @@ func main() {
 				"T": t,
 			},
 			Renames: map[string]string{
-				"Sorter": t + "Sorter",
+				"Sorter": sorterType,
 			},
 			Writer: buf,
 		})
