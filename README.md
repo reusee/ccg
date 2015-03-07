@@ -1,6 +1,10 @@
 # ccg
 ccg generates codes from existing template package.
 
+features
+* no DSL for template
+* no directive comments
+
 # install
 ```
 go get github.com/reusee/ccg/cmd/ccg
@@ -68,7 +72,10 @@ Check following packages for example
 * https://github.com/reusee/ccg/tree/master/set
 * https://github.com/reusee/ccg/tree/master/infchan
 
-# other
+# others
 
-### the command is too verbose
+### command is too verbose
 write a wrapper (e.g. https://github.com/reusee/ccg/tree/master/cmd/myccg) or define shell aliases
+
+### insert outputs to vim
+:read !ccg [args...]
