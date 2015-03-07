@@ -46,6 +46,11 @@ func main() {
 			[]string{"T"},
 			[]string{"Set", "New"},
 		},
+		"infchan": {
+			"[element type]",
+			[]string{"T"},
+			[]string{"New"},
+		},
 	}
 
 	spec, ok := specs[args[0]]
