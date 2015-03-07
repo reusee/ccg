@@ -1,12 +1,12 @@
 # ccg
-ccg generates codes from existing package as template, while replacing types and identifiers as needed.
+ccg generates codes from existing template package.
 
 # install
 ```
 go get github.com/reusee/ccg/cmd/ccg
 ```
 
-# example
+# command example
 
 ### sorter
 ```
@@ -59,3 +59,6 @@ func (s StrSet) In(t string) (ok bool) {
   return
 }
 ```
+
+# writing template package
+Any package can be used as template.
