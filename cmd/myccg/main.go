@@ -41,6 +41,11 @@ func main() {
 			[]string{"T"},
 			[]string{"Sorter"},
 		},
+		"set": {
+			"[element type] [set type] [constructor name]",
+			[]string{"T"},
+			[]string{"Set", "New"},
+		},
 	}
 
 	spec, ok := specs[args[0]]
