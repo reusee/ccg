@@ -61,4 +61,4 @@ func (s StrSet) In(t string) (ok bool) {
 ```
 
 # writing template package
-Any package can be used as template.
+Any package with placeholder type defined can be used as template.
