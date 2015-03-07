@@ -62,10 +62,11 @@ func (s StrSet) In(t string) (ok bool) {
 
 # writing template package
 Any package with placeholder type defined can be used as template.
+
 Check following packages for example
-https://github.com/reusee/ccg/tree/master/sorter
-https://github.com/reusee/ccg/tree/master/set
-https://github.com/reusee/ccg/tree/master/infchan
+* https://github.com/reusee/ccg/tree/master/sorter
+* https://github.com/reusee/ccg/tree/master/set
+* https://github.com/reusee/ccg/tree/master/infchan
 
 # other
 
