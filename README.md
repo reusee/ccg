@@ -62,3 +62,8 @@ func (s StrSet) In(t string) (ok bool) {
 
 # writing template package
 Any package with placeholder type defined can be used as template.
+
+# other
+
+### the command is too verbose
+write a wrapper (e.g. https://github.com/reusee/ccg/tree/master/cmd/myccg) or define shell aliases
