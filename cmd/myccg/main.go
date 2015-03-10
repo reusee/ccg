@@ -51,6 +51,11 @@ func main() {
 			[]string{"T"},
 			[]string{"New"},
 		},
+		"slice": {
+			"[element type] [slice type]",
+			[]string{"T"},
+			[]string{"Ts"},
+		},
 	}
 
 	spec, ok := specs[args[0]]
