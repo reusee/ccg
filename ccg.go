@@ -57,11 +57,17 @@ func Copy(config Config) error {
 						for i, name := range spec.Names {
 							if _, exists := config.Params[name.Name]; !exists {
 								names = append(names, name)
-								values = append(values, spec.Values[i])
+								if i < len(spec.Values) {
+									values = append(values, spec.Values[i])
+								}
 							}
 						}
 						spec.Names = names
-						spec.Values = values
+						if len(values) == 0 {
+							spec.Values = nil
+						} else {
+							spec.Values = values
+						}
 						return len(spec.Names) > 0
 					})
 					ret = len(decl.Specs) > 0
@@ -144,32 +150,43 @@ func Copy(config Config) error {
 	}
 
 	// collect output declarations
-	newTypes := []ast.Spec{}
-	newVars := []ast.Spec{}
+	decls := []ast.Decl{}
 	for _, f := range info.Files {
 		for _, decl := range f.Decls {
 			switch decl := decl.(type) {
 			case *ast.GenDecl:
 				switch decl.Tok {
 				case token.VAR:
+					newDecl := &ast.GenDecl{
+						Tok: token.VAR,
+					}
 					for _, spec := range decl.Specs {
 						spec := spec.(*ast.ValueSpec)
 						for i, name := range spec.Names {
 							if mutator, ok := existingVars[name.Name]; ok {
 								mutator(spec.Values[i])
 							} else {
-								newVars = append(newVars, spec)
+								newDecl.Specs = append(newDecl.Specs, spec)
 							}
 						}
 					}
+					if len(newDecl.Specs) > 0 {
+						decls = append(decls, newDecl)
+					}
 				case token.TYPE:
+					newDecl := &ast.GenDecl{
+						Tok: token.TYPE,
+					}
 					for _, spec := range decl.Specs {
 						name := spec.(*ast.TypeSpec).Name.Name
 						if mutator, ok := existingTypes[name]; ok {
 							mutator(spec.(*ast.TypeSpec).Type)
 						} else {
-							newTypes = append(newTypes, spec)
+							newDecl.Specs = append(newDecl.Specs, spec)
 						}
+					}
+					if len(newDecl.Specs) > 0 {
+						decls = append(decls, newDecl)
 					}
 				}
 			case *ast.FuncDecl:
@@ -184,19 +201,6 @@ func Copy(config Config) error {
 				}
 			}
 		}
-	}
-	decls := []ast.Decl{}
-	if len(newTypes) > 0 {
-		decls = append(decls, &ast.GenDecl{
-			Tok:   token.TYPE,
-			Specs: newTypes,
-		})
-	}
-	if len(newVars) > 0 {
-		decls = append(decls, &ast.GenDecl{
-			Tok:   token.VAR,
-			Specs: newVars,
-		})
 	}
 	decls = append(decls, config.Decls...)
 

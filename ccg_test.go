@@ -166,3 +166,24 @@ func TestNameNotFound(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestPackage(t *testing.T) {
+	buf := new(bytes.Buffer)
+	err := Copy(Config{
+		From:    "github.com/reusee/ccg/testdata/var",
+		Writer:  buf,
+		Package: "foo",
+	})
+	if err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	if !bytes.Equal(buf.Bytes(), []byte(
+		`package foo
+
+var N int
+var Num = N
+`)) {
+		pt("generated: %s\n", buf.Bytes())
+		t.Fatal("copy")
+	}
+}
