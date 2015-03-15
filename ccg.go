@@ -72,7 +72,6 @@ func Copy(config Config) error {
 					})
 					ret = len(decl.Specs) > 0
 				}
-				//TODO token.CONST
 			}
 			return
 		})
