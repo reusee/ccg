@@ -213,17 +213,17 @@ func Copy(config Config) error {
 			}
 			buf := new(bytes.Buffer)
 			err = format.Node(buf, program.Fset, file)
-			if err != nil {
+			if err != nil { //NOCOVER
 				return fmt.Errorf("ccg: format output %v", err)
 			}
 			bs, err := imports.Process("", buf.Bytes(), nil)
-			if err != nil {
+			if err != nil { //NOCOVER
 				return fmt.Errorf("ccg: format output %v", err)
 			}
 			config.Writer.Write(bs)
 		} else { // output decls only
 			err = format.Node(config.Writer, program.Fset, decls)
-			if err != nil {
+			if err != nil { //NOCOVER
 				return fmt.Errorf("ccg: format output %v", err)
 			}
 		}
