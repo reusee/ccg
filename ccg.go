@@ -203,6 +203,17 @@ func Copy(config Config) error {
 	}
 	decls = append(decls, config.Decls...)
 
+	// move import decls to beginning
+	var importDecls, newDecls []ast.Decl
+	for _, decl := range decls {
+		if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.IMPORT {
+			importDecls = append(importDecls, decl)
+			continue
+		}
+		newDecls = append(newDecls, decl)
+	}
+	decls = append(importDecls, newDecls...)
+
 	// output
 	if config.Writer != nil {
 		if config.Package != "" { // output complete file
