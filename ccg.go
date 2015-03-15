@@ -7,7 +7,6 @@ import (
 	"go/format"
 	"go/token"
 	"io"
-	"log"
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
@@ -75,17 +74,22 @@ func Copy(config Config) error {
 
 	// collect objects to rename
 	objects := make(map[types.Object]string)
-	collectObjects := func(mapping map[string]string) {
+	collectObjects := func(mapping map[string]string) error {
 		for from, to := range mapping {
 			obj := info.Pkg.Scope().Lookup(from)
 			if obj == nil {
-				log.Fatalf("name not found %s", from)
+				return fmt.Errorf("ccg: name not found %s", from)
 			}
 			objects[obj] = to
 		}
+		return nil
 	}
-	collectObjects(config.Params)
-	collectObjects(config.Renames)
+	if err := collectObjects(config.Params); err != nil {
+		return err
+	}
+	if err := collectObjects(config.Renames); err != nil {
+		return err
+	}
 
 	// rename
 	rename := func(defs map[*ast.Ident]types.Object) {
@@ -99,14 +103,24 @@ func Copy(config Config) error {
 	rename(info.Uses)
 
 	// collect existing decls
-	//existingVars := make(map[string]func(expr ast.Expr))
+	existingVars := make(map[string]func(expr ast.Expr))
 	existingTypes := make(map[string]func(expr ast.Expr))
 	existingFuncs := make(map[string]func(fn *ast.FuncDecl))
 	for i, decl := range config.Decls {
 		switch decl := decl.(type) {
 		case *ast.GenDecl:
 			switch decl.Tok {
-			case token.VAR: //TODO
+			case token.VAR:
+				for _, spec := range decl.Specs {
+					spec := spec.(*ast.ValueSpec)
+					for i, name := range spec.Names {
+						i := i
+						spec := spec
+						existingVars[name.Name] = func(expr ast.Expr) {
+							spec.Values[i] = expr
+						}
+					}
+				}
 			case token.TYPE:
 				for i, spec := range decl.Specs {
 					spec := spec.(*ast.TypeSpec)
@@ -131,12 +145,23 @@ func Copy(config Config) error {
 
 	// collect output declarations
 	newTypes := []ast.Spec{}
+	newVars := []ast.Spec{}
 	for _, f := range info.Files {
 		for _, decl := range f.Decls {
 			switch decl := decl.(type) {
 			case *ast.GenDecl:
 				switch decl.Tok {
-				case token.VAR: //TODO
+				case token.VAR:
+					for _, spec := range decl.Specs {
+						spec := spec.(*ast.ValueSpec)
+						for i, name := range spec.Names {
+							if mutator, ok := existingVars[name.Name]; ok {
+								mutator(spec.Values[i])
+							} else {
+								newVars = append(newVars, spec)
+							}
+						}
+					}
 				case token.TYPE:
 					for _, spec := range decl.Specs {
 						name := spec.(*ast.TypeSpec).Name.Name
@@ -165,6 +190,12 @@ func Copy(config Config) error {
 		decls = append(decls, &ast.GenDecl{
 			Tok:   token.TYPE,
 			Specs: newTypes,
+		})
+	}
+	if len(newVars) > 0 {
+		decls = append(decls, &ast.GenDecl{
+			Tok:   token.VAR,
+			Specs: newVars,
 		})
 	}
 	decls = append(decls, config.Decls...)
