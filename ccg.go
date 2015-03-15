@@ -36,25 +36,39 @@ func Copy(config Config) error {
 	}
 	info := program.Imported[config.From]
 
-	// remove type param declarations
+	// remove param declarations
 	for _, f := range info.Files {
-		newDecls := []ast.Decl{}
-	decls:
-		for _, decl := range f.Decls {
-			if decl, ok := decl.(*ast.GenDecl); ok {
+		f.Decls = []ast.Decl(AstDecls(f.Decls).Filter(func(decl ast.Decl) bool {
+			if decl, ok := decl.(*ast.GenDecl); !ok {
+				return true
+			} else {
 				if decl.Tok == token.TYPE {
-					for _, spec := range decl.Specs {
-						if spec, ok := spec.(*ast.TypeSpec); ok {
-							if _, ok := config.Params[spec.Name.Name]; ok {
-								continue decls
+					decl.Specs = []ast.Spec(AstSpecs(decl.Specs).Filter(func(spec ast.Spec) bool {
+						name := spec.(*ast.TypeSpec).Name.Name
+						_, exists := config.Params[name]
+						return !exists
+					}))
+					return len(decl.Specs) > 0
+				} else if decl.Tok == token.VAR {
+					decl.Specs = []ast.Spec(AstSpecs(decl.Specs).Filter(func(sp ast.Spec) bool {
+						spec := sp.(*ast.ValueSpec)
+						names := []*ast.Ident{}
+						values := []ast.Expr{}
+						for i, name := range spec.Names {
+							if _, exists := config.Params[name.Name]; !exists {
+								names = append(names, name)
+								values = append(values, spec.Values[i])
 							}
 						}
-					}
+						spec.Names = names
+						spec.Values = values
+						return len(spec.Names) > 0
+					}))
+					return len(decl.Specs) > 0
 				}
 			}
-			newDecls = append(newDecls, decl)
-		}
-		f.Decls = newDecls
+			return true
+		}))
 	}
 
 	// collect objects to rename
