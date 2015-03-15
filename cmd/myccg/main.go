@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -80,10 +79,9 @@ func main() {
 		renames[orig] = args[1+start+i]
 	}
 
-	var writer io.Writer
+	buf := new(bytes.Buffer)
 	var decls []ast.Decl
 	if *outputFile != "" {
-		// try to load content
 		content, err := ioutil.ReadFile(*outputFile)
 		if err == nil {
 			astFile, err := parser.ParseFile(new(token.FileSet), *outputFile, content, 0)
@@ -91,28 +89,29 @@ func main() {
 				decls = astFile.Decls
 			}
 		}
-		writer, err = os.Create(*outputFile)
-		if err != nil {
-			log.Fatalf("myccg: create file %s error: %v", *outputFile, err)
-		}
-		defer writer.(*os.File).Close()
 		if *packageName == "" {
 			main := "main"
 			packageName = &main
 		}
-	} else {
-		writer = new(bytes.Buffer)
 	}
 
-	ccg.Copy(ccg.Config{
+	err := ccg.Copy(ccg.Config{
 		From:    "github.com/reusee/ccg/" + args[0],
 		Params:  params,
 		Renames: renames,
-		Writer:  writer,
+		Writer:  buf,
 		Package: *packageName,
 		Decls:   decls,
 	})
+	if err != nil {
+		log.Fatalf("ccg: copy error %v", err)
+	}
 	if *outputFile == "" {
-		pt("%s\n", writer.(*bytes.Buffer).Bytes())
+		pt("%s\n", buf.Bytes())
+	} else {
+		err = ioutil.WriteFile(*outputFile, buf.Bytes(), 0644)
+		if err != nil {
+			log.Fatalf("ccg: write file error %v", err)
+		}
 	}
 }
