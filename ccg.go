@@ -38,19 +38,19 @@ func Copy(config Config) error {
 
 	// remove param declarations
 	for _, f := range info.Files {
-		f.Decls = []ast.Decl(AstDecls(f.Decls).Filter(func(decl ast.Decl) bool {
+		f.Decls = AstDecls(f.Decls).Filter(func(decl ast.Decl) bool {
 			if decl, ok := decl.(*ast.GenDecl); !ok {
 				return true
 			} else {
 				if decl.Tok == token.TYPE {
-					decl.Specs = []ast.Spec(AstSpecs(decl.Specs).Filter(func(spec ast.Spec) bool {
+					decl.Specs = AstSpecs(decl.Specs).Filter(func(spec ast.Spec) bool {
 						name := spec.(*ast.TypeSpec).Name.Name
 						_, exists := config.Params[name]
 						return !exists
-					}))
+					})
 					return len(decl.Specs) > 0
 				} else if decl.Tok == token.VAR {
-					decl.Specs = []ast.Spec(AstSpecs(decl.Specs).Filter(func(sp ast.Spec) bool {
+					decl.Specs = AstSpecs(decl.Specs).Filter(func(sp ast.Spec) bool {
 						spec := sp.(*ast.ValueSpec)
 						names := []*ast.Ident{}
 						values := []ast.Expr{}
@@ -63,12 +63,13 @@ func Copy(config Config) error {
 						spec.Names = names
 						spec.Values = values
 						return len(spec.Names) > 0
-					}))
+					})
 					return len(decl.Specs) > 0
 				}
+				//TODO token.CONST
 			}
 			return true
-		}))
+		})
 	}
 
 	// collect objects to rename
@@ -100,6 +101,7 @@ func Copy(config Config) error {
 	decls := []ast.Decl{}
 	for _, f := range info.Files {
 		//TODO filter decls
+		//TODO merge existing decls
 		decls = append(decls, f.Decls...)
 	}
 
