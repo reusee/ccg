@@ -5,8 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
+
+	"go/ast"
+	"go/parser"
+	"go/token"
 
 	"github.com/reusee/ccg"
 )
@@ -76,8 +81,16 @@ func main() {
 	}
 
 	var writer io.Writer
+	var decls []ast.Decl
 	if *outputFile != "" {
-		var err error
+		// try to load content
+		content, err := ioutil.ReadFile(*outputFile)
+		if err == nil {
+			astFile, err := parser.ParseFile(new(token.FileSet), *outputFile, content, 0)
+			if err == nil {
+				decls = astFile.Decls
+			}
+		}
 		writer, err = os.Create(*outputFile)
 		if err != nil {
 			log.Fatalf("myccg: create file %s error: %v", *outputFile, err)
@@ -97,6 +110,7 @@ func main() {
 		Renames: renames,
 		Writer:  writer,
 		Package: *packageName,
+		Decls:   decls,
 	})
 	if *outputFile == "" {
 		pt("%s\n", writer.(*bytes.Buffer).Bytes())
