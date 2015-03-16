@@ -214,6 +214,20 @@ func Copy(config Config) error {
 	}
 	decls = append(importDecls, newDecls...)
 
+	// ensure linebreak between decls
+	for _, decl := range decls {
+		switch decl := decl.(type) {
+		case *ast.FuncDecl:
+			if decl.Doc == nil {
+				decl.Doc = new(ast.CommentGroup)
+			}
+		case *ast.GenDecl:
+			if decl.Doc == nil {
+				decl.Doc = new(ast.CommentGroup)
+			}
+		}
+	}
+
 	// output
 	if config.Writer != nil {
 		if config.Package != "" { // output complete file
