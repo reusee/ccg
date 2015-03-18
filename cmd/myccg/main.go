@@ -84,10 +84,11 @@ func main() {
 
 	buf := new(bytes.Buffer)
 	var decls []ast.Decl
+	fileSet := new(token.FileSet)
 	if *outputFile != "" {
 		content, err := ioutil.ReadFile(*outputFile)
 		if err == nil {
-			astFile, err := parser.ParseFile(new(token.FileSet), *outputFile, content, 0)
+			astFile, err := parser.ParseFile(fileSet, *outputFile, content, 0)
 			if err == nil {
 				decls = astFile.Decls
 			}
@@ -140,6 +141,7 @@ func main() {
 		Decls:       decls,
 		FuncFilters: []func(*ast.FuncDecl) bool{funcFilter},
 		TypeFilters: []func(*ast.TypeSpec) bool{typeFilter},
+		FileSet:     fileSet,
 	})
 	if err != nil {
 		log.Fatalf("ccg: copy error %v", err)
