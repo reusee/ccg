@@ -30,11 +30,14 @@ type Config struct {
 	FuncFilters []func(*ast.FuncDecl) bool
 	VarFilters  []func(*ast.ValueSpec) bool
 	TypeFilters []func(*ast.TypeSpec) bool
+	FileSet     *token.FileSet
 }
 
 func Copy(config Config) error {
 	// load package
-	var loadConf loader.Config
+	loadConf := loader.Config{
+		Fset: config.FileSet,
+	}
 	loadConf.Import(config.From)
 	program, err := loadConf.Load()
 	if err != nil {
