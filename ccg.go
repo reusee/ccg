@@ -28,6 +28,8 @@ type Config struct {
 	Package     string
 	Decls       []ast.Decl
 	FuncFilters []func(*ast.FuncDecl) bool
+	VarFilters  []func(*ast.ValueSpec) bool
+	TypeFilters []func(*ast.TypeSpec) bool
 }
 
 func Copy(config Config) error {
@@ -165,8 +167,14 @@ func Copy(config Config) error {
 					newDecl := &ast.GenDecl{
 						Tok: token.VAR,
 					}
+				loopVar:
 					for _, spec := range decl.Specs {
 						spec := spec.(*ast.ValueSpec)
+						for _, filter := range config.VarFilters {
+							if !filter(spec) {
+								continue loopVar
+							}
+						}
 						for i, name := range spec.Names {
 							if mutator, ok := existingVars[name.Name]; ok {
 								mutator(spec.Values[i])
@@ -183,10 +191,17 @@ func Copy(config Config) error {
 					newDecl := &ast.GenDecl{
 						Tok: token.TYPE,
 					}
+				loopType:
 					for _, spec := range decl.Specs {
-						name := spec.(*ast.TypeSpec).Name.Name
+						spec := spec.(*ast.TypeSpec)
+						for _, filter := range config.TypeFilters {
+							if !filter(spec) {
+								continue loopType
+							}
+						}
+						name := spec.Name.Name
 						if mutator, ok := existingTypes[name]; ok {
-							mutator(spec.(*ast.TypeSpec).Type)
+							mutator(spec.Type)
 						} else {
 							newDecl.Specs = append(newDecl.Specs, spec)
 						}
