@@ -2,6 +2,12 @@ package ccg
 
 import "go/ast"
 
+type sliceSorter struct {
+	l    int
+	less func(i, j int) bool
+	swap func(i, j int)
+}
+
 type AstDecls []ast.Decl
 
 func (s AstDecls) Filter(filter func(ast.Decl) bool) (ret AstDecls) {

@@ -1,5 +1,8 @@
 package ccg
 
+//go:generate myccg -funcs AstDecls.Filter -package ccg -output utils.go slice ast.Decl AstDecls
+//go:generate myccg -funcs AstSpecs.Filter -package ccg -output utils.go slice ast.Spec AstSpecs
+
 import (
 	"bytes"
 	"fmt"
@@ -18,12 +21,13 @@ var (
 )
 
 type Config struct {
-	From    string
-	Params  map[string]string
-	Renames map[string]string
-	Writer  io.Writer
-	Package string
-	Decls   []ast.Decl
+	From        string
+	Params      map[string]string
+	Renames     map[string]string
+	Writer      io.Writer
+	Package     string
+	Decls       []ast.Decl
+	FuncFilters []func(*ast.FuncDecl) bool
 }
 
 func Copy(config Config) error {
@@ -151,6 +155,7 @@ func Copy(config Config) error {
 	// collect output declarations
 	decls := []ast.Decl{}
 	for _, f := range info.Files {
+	loopDecl:
 		for _, decl := range f.Decls {
 			switch decl := decl.(type) {
 			case *ast.GenDecl:
@@ -192,6 +197,11 @@ func Copy(config Config) error {
 				}
 			// func
 			case *ast.FuncDecl:
+				for _, filter := range config.FuncFilters {
+					if !filter(decl) {
+						continue loopDecl
+					}
+				}
 				name := decl.Name.Name
 				if decl.Recv != nil {
 					name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name

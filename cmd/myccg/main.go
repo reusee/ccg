@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 
 	"go/ast"
 	"go/parser"
@@ -20,6 +21,7 @@ var (
 
 	outputFile  = flag.String("output", "", "output file")
 	packageName = flag.String("package", "", "output package")
+	funcs       = flag.String("funcs", "", "only generate these funcs, comma-separated")
 )
 
 func init() {
@@ -95,13 +97,32 @@ func main() {
 		}
 	}
 
+	funcsSet := map[string]struct{}{}
+	if len(*funcs) > 0 {
+		for _, name := range strings.Split(*funcs, ",") {
+			funcsSet[name] = struct{}{}
+		}
+	}
+	funcFilter := func(decl *ast.FuncDecl) bool {
+		if len(funcsSet) == 0 {
+			return true
+		}
+		name := decl.Name.Name
+		if decl.Recv != nil {
+			name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
+		}
+		_, in := funcsSet[name]
+		return in
+	}
+
 	err := ccg.Copy(ccg.Config{
-		From:    "github.com/reusee/ccg/" + args[0],
-		Params:  params,
-		Renames: renames,
-		Writer:  buf,
-		Package: *packageName,
-		Decls:   decls,
+		From:        "github.com/reusee/ccg/" + args[0],
+		Params:      params,
+		Renames:     renames,
+		Writer:      buf,
+		Package:     *packageName,
+		Decls:       decls,
+		FuncFilters: []func(*ast.FuncDecl) bool{funcFilter},
 	})
 	if err != nil {
 		log.Fatalf("ccg: copy error %v", err)
