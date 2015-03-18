@@ -181,6 +181,7 @@ func TestPackage(t *testing.T) {
 		`package foo
 
 var N int
+
 var Num = N
 `)) {
 		pt("generated: %s\n", buf.Bytes())
