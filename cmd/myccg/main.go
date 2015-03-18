@@ -21,8 +21,7 @@ var (
 
 	outputFile  = flag.String("output", "", "output file")
 	packageName = flag.String("package", "", "output package")
-	funcs       = flag.String("funcs", "", "only generate these funcs, comma-separated names")
-	types       = flag.String("types", "", "only generate these types, comma-separated names")
+	uses        = flag.String("uses", "", "filter names")
 )
 
 func init() {
@@ -99,37 +98,18 @@ func main() {
 		}
 	}
 
-	funcsSet := map[string]struct{}{}
-	if len(*funcs) > 0 {
-		for _, name := range strings.Split(*funcs, ",") {
-			funcsSet[name] = struct{}{}
+	nameSet := map[string]struct{}{}
+	if len(*uses) > 0 {
+		for _, name := range strings.Split(*uses, ",") {
+			nameSet[name] = struct{}{}
 		}
 	}
-	funcFilter := func(decl *ast.FuncDecl) bool {
-		if len(funcsSet) == 0 {
-			return true
-		}
-		name := decl.Name.Name
-		if decl.Recv != nil {
-			name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
-		}
-		_, in := funcsSet[name]
-		return in
-	}
-
-	typesSet := map[string]struct{}{}
-	if len(*types) > 0 {
-		for _, name := range strings.Split(*types, ",") {
-			typesSet[name] = struct{}{}
-		}
-	}
-	typeFilter := func(spec *ast.TypeSpec) bool {
-		if len(typesSet) == 0 {
-			return true
-		}
-		name := spec.Name.Name
-		_, in := typesSet[name]
-		return in
+	filters := []func(string) bool{}
+	if len(nameSet) > 0 {
+		filters = append(filters, func(name string) bool {
+			_, in := nameSet[name]
+			return in
+		})
 	}
 
 	err := ccg.Copy(ccg.Config{
@@ -139,9 +119,8 @@ func main() {
 		Writer:      buf,
 		Package:     *packageName,
 		Decls:       decls,
-		FuncFilters: []func(*ast.FuncDecl) bool{funcFilter},
-		TypeFilters: []func(*ast.TypeSpec) bool{typeFilter},
 		FileSet:     fileSet,
+		NameFilters: filters,
 	})
 	if err != nil {
 		log.Fatalf("ccg: copy error %v", err)

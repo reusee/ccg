@@ -1,7 +1,7 @@
 package ccg
 
-//go:generate myccg -funcs AstDecls.Filter -package ccg -output utils.go -types AstDecls slice ast.Decl AstDecls
-//go:generate myccg -funcs AstSpecs.Filter -package ccg -output utils.go -types AstSpecs slice ast.Spec AstSpecs
+//go:generate myccg -uses AstDecls,AstDecls.Filter -package ccg -output utils.go slice ast.Decl AstDecls
+//go:generate myccg -uses AstSpecs,AstSpecs.Filter -package ccg -output utils.go slice ast.Spec AstSpecs
 
 import (
 	"bytes"
@@ -158,6 +158,7 @@ func Copy(config Config) error {
 	// collect output declarations
 	decls := []ast.Decl{}
 	for _, f := range info.Files {
+	loopSpec:
 		for _, decl := range f.Decls {
 			switch decl := decl.(type) {
 			case *ast.GenDecl:
@@ -169,7 +170,13 @@ func Copy(config Config) error {
 					}
 					for _, spec := range decl.Specs {
 						spec := spec.(*ast.ValueSpec)
+					loopVarName:
 						for i, name := range spec.Names {
+							for _, filter := range config.NameFilters {
+								if !filter(name.Name) {
+									continue loopVarName
+								}
+							}
 							if mutator, ok := existingVars[name.Name]; ok {
 								mutator(spec.Values[i])
 							} else {
@@ -185,9 +192,15 @@ func Copy(config Config) error {
 					newDecl := &ast.GenDecl{
 						Tok: token.TYPE,
 					}
+				loopTypeSpec:
 					for _, spec := range decl.Specs {
 						spec := spec.(*ast.TypeSpec)
 						name := spec.Name.Name
+						for _, filter := range config.NameFilters {
+							if !filter(name) {
+								continue loopTypeSpec
+							}
+						}
 						if mutator, ok := existingTypes[name]; ok {
 							mutator(spec.Type)
 						} else {
@@ -201,6 +214,11 @@ func Copy(config Config) error {
 			// func
 			case *ast.FuncDecl:
 				name := decl.Name.Name
+				for _, filter := range config.NameFilters {
+					if !filter(name) {
+						continue loopSpec
+					}
+				}
 				if decl.Recv != nil {
 					name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
 				}
