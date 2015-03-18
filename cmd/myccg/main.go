@@ -21,7 +21,8 @@ var (
 
 	outputFile  = flag.String("output", "", "output file")
 	packageName = flag.String("package", "", "output package")
-	funcs       = flag.String("funcs", "", "only generate these funcs, comma-separated")
+	funcs       = flag.String("funcs", "", "only generate these funcs, comma-separated names")
+	types       = flag.String("types", "", "only generate these types, comma-separated names")
 )
 
 func init() {
@@ -115,6 +116,21 @@ func main() {
 		return in
 	}
 
+	typesSet := map[string]struct{}{}
+	if len(*types) > 0 {
+		for _, name := range strings.Split(*types, ",") {
+			typesSet[name] = struct{}{}
+		}
+	}
+	typeFilter := func(spec *ast.TypeSpec) bool {
+		if len(typesSet) == 0 {
+			return true
+		}
+		name := spec.Name.Name
+		_, in := typesSet[name]
+		return in
+	}
+
 	err := ccg.Copy(ccg.Config{
 		From:        "github.com/reusee/ccg/" + args[0],
 		Params:      params,
@@ -123,6 +139,7 @@ func main() {
 		Package:     *packageName,
 		Decls:       decls,
 		FuncFilters: []func(*ast.FuncDecl) bool{funcFilter},
+		TypeFilters: []func(*ast.TypeSpec) bool{typeFilter},
 	})
 	if err != nil {
 		log.Fatalf("ccg: copy error %v", err)

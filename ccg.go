@@ -1,7 +1,7 @@
 package ccg
 
-//go:generate myccg -funcs AstDecls.Filter -package ccg -output utils.go slice ast.Decl AstDecls
-//go:generate myccg -funcs AstSpecs.Filter -package ccg -output utils.go slice ast.Spec AstSpecs
+//go:generate myccg -funcs AstDecls.Filter -package ccg -output utils.go -types AstDecls slice ast.Decl AstDecls
+//go:generate myccg -funcs AstSpecs.Filter -package ccg -output utils.go -types AstSpecs slice ast.Spec AstSpecs
 
 import (
 	"bytes"
