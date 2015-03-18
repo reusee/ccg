@@ -155,6 +155,7 @@ func Copy(config Config) error {
 			switch decl := decl.(type) {
 			case *ast.GenDecl:
 				switch decl.Tok {
+				// var
 				case token.VAR:
 					newDecl := &ast.GenDecl{
 						Tok: token.VAR,
@@ -172,6 +173,7 @@ func Copy(config Config) error {
 					if len(newDecl.Specs) > 0 {
 						decls = append(decls, newDecl)
 					}
+				// type
 				case token.TYPE:
 					newDecl := &ast.GenDecl{
 						Tok: token.TYPE,
@@ -188,6 +190,7 @@ func Copy(config Config) error {
 						decls = append(decls, newDecl)
 					}
 				}
+			// func
 			case *ast.FuncDecl:
 				name := decl.Name.Name
 				if decl.Recv != nil {
@@ -203,19 +206,9 @@ func Copy(config Config) error {
 	}
 	decls = append(decls, config.Decls...)
 
-	// move import decls to beginning
 	var importDecls, newDecls []ast.Decl
 	for _, decl := range decls {
-		if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.IMPORT {
-			importDecls = append(importDecls, decl)
-			continue
-		}
-		newDecls = append(newDecls, decl)
-	}
-	decls = append(importDecls, newDecls...)
-
-	// ensure linebreak between decls
-	for _, decl := range decls {
+		// ensure linebreak between decls
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
 			if decl.Doc == nil {
@@ -226,7 +219,14 @@ func Copy(config Config) error {
 				decl.Doc = new(ast.CommentGroup)
 			}
 		}
+		// move import decls to beginning
+		if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.IMPORT {
+			importDecls = append(importDecls, decl)
+			continue
+		}
+		newDecls = append(newDecls, decl)
 	}
+	decls = append(importDecls, newDecls...)
 
 	// output
 	if config.Writer != nil {
