@@ -115,11 +115,14 @@ func TestNameNotFound(t *testing.T) {
 func TestDeps(t *testing.T) {
 	buf := new(bytes.Buffer)
 	err := Copy(Config{
-		From:   "github.com/reusee/ccg/testdata/deps",
-		Writer: buf,
+		From:    "github.com/reusee/ccg/testdata/deps",
+		Writer:  buf,
+		Uses:    []string{"T.Bar", "B"},
+		Package: "deps",
 	})
 	if err != nil {
 		t.Fatalf("copy: %v", err)
 	}
-	//TODO
+	expected := readExpected("deps/_expected.go")
+	checkResult(expected, buf.Bytes(), t)
 }

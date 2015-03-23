@@ -2,6 +2,7 @@ package ccg
 
 //go:generate myccg -uses AstDecls,AstDecls.Filter -package ccg -output utils.go slice ast.Decl AstDecls
 //go:generate myccg -uses AstSpecs,AstSpecs.Filter -package ccg -output utils.go slice ast.Spec AstSpecs
+//go:generate myccg -package ccg -output utils.go set types.Object ObjectSet NewObjectSet
 
 import (
 	"bytes"
@@ -10,6 +11,7 @@ import (
 	"go/format"
 	"go/token"
 	"io"
+	"strings"
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
@@ -29,6 +31,7 @@ type Config struct {
 	Decls       []ast.Decl
 	NameFilters []func(string) bool
 	FileSet     *token.FileSet
+	Uses        []string
 }
 
 func Copy(config Config) error {
@@ -221,13 +224,13 @@ func Copy(config Config) error {
 			// func
 			case *ast.FuncDecl:
 				name := decl.Name.Name
+				if decl.Recv != nil {
+					name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
+				}
 				for _, filter := range config.NameFilters {
 					if !filter(name) {
 						continue loopSpec
 					}
-				}
-				if decl.Recv != nil {
-					name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
 				}
 				if mutator, ok := existingFuncs[name]; ok {
 					mutator(decl)
@@ -261,6 +264,73 @@ func Copy(config Config) error {
 	}
 	decls = append(importDecls, newDecls...)
 
+	//TODO put this before merging to existing decls
+	// get function dependencies
+	deps := make(map[types.Object]ObjectSet)
+	for _, decl := range decls {
+		switch decl := decl.(type) {
+		case *ast.FuncDecl:
+			obj := info.ObjectOf(decl.Name)
+			set := NewObjectSet()
+			var visitor astVisitor
+			visitor = func(node ast.Node) astVisitor {
+				switch node := node.(type) {
+				case *ast.Ident:
+					dep := info.ObjectOf(node)
+					set.Add(dep)
+				}
+				return visitor
+			}
+			ast.Walk(visitor, decl)
+			deps[obj] = set
+		}
+	}
+	// get uses objects
+	uses := NewObjectSet()
+	for _, use := range config.Uses {
+		parts := strings.Split(use, ".")
+		switch len(parts) {
+		case 2: // method
+			ty := info.Pkg.Scope().Lookup(parts[0])
+			typeName, ok := ty.(*types.TypeName)
+			if !ok {
+				return fmt.Errorf("%s is not a type", parts[0])
+			}
+			obj, _, _ := types.LookupFieldOrMethod(typeName.Type(), true, info.Pkg, parts[1])
+			uses.Add(obj)
+		case 1: // non-method
+			obj := info.Pkg.Scope().Lookup(parts[0])
+			uses.Add(obj)
+		default:
+			return fmt.Errorf("invalid use spec: %s", use)
+		}
+	}
+	// filter
+	if len(uses) > 0 {
+		// calculate uses closure
+		for {
+			l := len(uses)
+			for use := range uses {
+				if deps, ok := deps[use]; ok {
+					for dep := range deps {
+						uses.Add(dep)
+					}
+				}
+			}
+			if len(uses) == l {
+				break
+			}
+		}
+		decls = AstDecls(decls).Filter(func(decl ast.Decl) bool {
+			switch decl := decl.(type) {
+			case *ast.FuncDecl:
+				obj := info.ObjectOf(decl.Name)
+				return uses.In(obj)
+			}
+			return true
+		})
+	}
+
 	// output
 	if config.Writer != nil {
 		if config.Package != "" { // output complete file
@@ -287,4 +357,10 @@ func Copy(config Config) error {
 	}
 
 	return nil
+}
+
+type astVisitor func(ast.Node) astVisitor
+
+func (v astVisitor) Visit(node ast.Node) ast.Visitor {
+	return v(node)
 }
