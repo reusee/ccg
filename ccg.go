@@ -2,7 +2,7 @@ package ccg
 
 //go:generate myccg -u AstDecls.Filter -p ccg -o utils.go slice ast.Decl AstDecls
 //go:generate myccg -u AstSpecs.Filter -p ccg -o utils.go slice ast.Spec AstSpecs
-//go:generate myccg -p ccg -o utils.go set types.Object ObjectSet NewObjectSet
+//go:generate myccg -u ObjectSet.Add,ObjectSet.In,NewObjectSet -p ccg -o utils.go set types.Object ObjectSet NewObjectSet
 
 import (
 	"bytes"
@@ -267,7 +267,12 @@ func Copy(config Config) error {
 			obj, _, _ := types.LookupFieldOrMethod(typeName.Type(), true, info.Pkg, parts[1])
 			uses.Add(obj)
 		case 1: // non-method
-			obj := info.Pkg.Scope().Lookup(parts[0])
+			var obj types.Object
+			if from, ok := renamed[parts[0]]; ok { // renamed function
+				obj = info.Pkg.Scope().Lookup(from)
+			} else {
+				obj = info.Pkg.Scope().Lookup(parts[0])
+			}
 			uses.Add(obj)
 		default:
 			return fmt.Errorf("invalid use spec: %s", use)
