@@ -1,7 +1,7 @@
 package ccg
 
-//go:generate myccg -uses AstDecls,AstDecls.Filter -package ccg -output utils.go slice ast.Decl AstDecls
-//go:generate myccg -uses AstSpecs,AstSpecs.Filter -package ccg -output utils.go slice ast.Spec AstSpecs
+//go:generate myccg -uses AstDecls.Filter -package ccg -output utils.go slice ast.Decl AstDecls
+//go:generate myccg -uses AstSpecs.Filter -package ccg -output utils.go slice ast.Spec AstSpecs
 //go:generate myccg -package ccg -output utils.go set types.Object ObjectSet NewObjectSet
 
 import (
@@ -91,6 +91,7 @@ func Copy(config Config) error {
 	}
 
 	// collect objects to rename
+	renamed := map[string]string{}
 	objects := make(map[types.Object]string)
 	collectObjects := func(mapping map[string]string) error {
 		for from, to := range mapping {
@@ -99,6 +100,7 @@ func Copy(config Config) error {
 				return fmt.Errorf("ccg: name not found %s", from)
 			}
 			objects[obj] = to
+			renamed[to] = from
 		}
 		return nil
 	}
@@ -245,13 +247,19 @@ func Copy(config Config) error {
 			deps[obj] = set
 		}
 	}
+
 	// get uses objects
 	uses := NewObjectSet()
 	for _, use := range config.Uses {
 		parts := strings.Split(use, ".")
 		switch len(parts) {
 		case 2: // method
-			ty := info.Pkg.Scope().Lookup(parts[0])
+			var ty types.Object
+			if from, ok := renamed[parts[0]]; ok { // renamed type, use original type name
+				ty = info.Pkg.Scope().Lookup(from)
+			} else {
+				ty = info.Pkg.Scope().Lookup(parts[0])
+			}
 			typeName, ok := ty.(*types.TypeName)
 			if !ok {
 				return fmt.Errorf("%s is not a type", parts[0])
@@ -265,6 +273,7 @@ func Copy(config Config) error {
 			return fmt.Errorf("invalid use spec: %s", use)
 		}
 	}
+
 	// filter
 	if len(uses) > 0 {
 		// calculate uses closure
@@ -281,13 +290,26 @@ func Copy(config Config) error {
 				break
 			}
 		}
-		newDecls = AstDecls(newDecls).Filter(func(decl ast.Decl) bool {
+		newDecls = AstDecls(newDecls).Filter(func(decl ast.Decl) (ret bool) {
 			switch decl := decl.(type) {
 			case *ast.FuncDecl:
 				obj := info.ObjectOf(decl.Name)
 				return uses.In(obj)
+			case *ast.GenDecl:
+				switch decl.Tok {
+				case token.TYPE:
+					decl.Specs = AstSpecs(decl.Specs).Filter(func(spec ast.Spec) bool {
+						obj := info.ObjectOf(spec.(*ast.TypeSpec).Name)
+						return uses.In(obj)
+					})
+					ret = len(decl.Specs) > 0
+				default:
+					ret = true
+				}
+			default:
+				ret = true
 			}
-			return true
+			return
 		})
 	}
 

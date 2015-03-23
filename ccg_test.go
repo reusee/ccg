@@ -151,3 +151,18 @@ func (b B) Foo() {}
 	expected := readExpected("deps/_expected2.go")
 	checkResult(expected, buf.Bytes(), t)
 }
+
+func TestDeps2(t *testing.T) {
+	buf := new(bytes.Buffer)
+	err := Copy(Config{
+		From:    "github.com/reusee/ccg/testdata/deps",
+		Writer:  buf,
+		Uses:    []string{"T.Foo"},
+		Package: "foo",
+	})
+	if err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	expected := readExpected("deps/_expected3.go")
+	checkResult(expected, buf.Bytes(), t)
+}
