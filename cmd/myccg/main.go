@@ -19,9 +19,9 @@ import (
 var (
 	pt = fmt.Printf
 
-	outputFile  = flag.String("output", "", "output file")
-	packageName = flag.String("package", "", "output package")
-	uses        = flag.String("uses", "", "comma-separated functions to be used only")
+	outputFile  = flag.String("o", "", "output file")
+	packageName = flag.String("p", "", "output package")
+	uses        = flag.String("u", "", "comma-separated names to be used only")
 )
 
 func init() {
