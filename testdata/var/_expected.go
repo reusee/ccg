@@ -1,3 +1,3 @@
 package foo
 
-var bar = 42
+var Num = 42

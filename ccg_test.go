@@ -2,124 +2,76 @@ package ccg
 
 import (
 	"bytes"
+	"fmt"
 	"go/parser"
 	"go/token"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestCopySet(t *testing.T) {
+func readExpected(path string) []byte {
+	content, err := ioutil.ReadFile(filepath.Join(
+		os.Getenv("GOPATH"), "src", "github.com/reusee/ccg/testdata/", path))
+	if err != nil {
+		panic(fmt.Sprintf("read file %s: %v", path, err))
+	}
+	return content
+}
+
+func checkResult(expected, got []byte, t *testing.T) {
+	if !bytes.Equal(expected, got) {
+		pt("== expected ==\n")
+		pt("%s\n", expected)
+		pt("== got ==\n")
+		pt("%s\n", got)
+		t.Fatalf("not match")
+	}
+}
+
+func TestCopy(t *testing.T) {
 	buf := new(bytes.Buffer)
 	err := Copy(Config{
-		From: "github.com/reusee/ccg/set",
+		From: "github.com/reusee/ccg/testdata/copy",
 		Params: map[string]string{
 			"T": "int",
 		},
 		Renames: map[string]string{
-			"New": "NewIntSet",
-			"Set": "IntSet",
+			"Ts":  "Ints",
+			"Foo": "NewInts",
 		},
-		Writer: buf,
+		Package: "foo",
+		Writer:  buf,
 	})
 	if err != nil {
 		t.Fatalf("copy: %v", err)
 	}
-	if !bytes.Equal(buf.Bytes(), []byte(
-		`type IntSet map[int]struct{}
-
-func NewIntSet() IntSet {
-	return IntSet(make(map[int]struct{}))
-}
-
-func (s IntSet) Add(t int) {
-	s[t] = struct{}{}
-}
-
-func (s IntSet) Del(t int) {
-	delete(s, t)
-}
-
-func (s IntSet) In(t int) (ok bool) {
-	_, ok = s[t]
-	return
-}`)) {
-		pt("generated: %s\n", buf.Bytes())
-		t.Fail()
-	}
+	expected := readExpected("copy/_expected.go")
+	checkResult(expected, buf.Bytes(), t)
 }
 
 func TestOverride(t *testing.T) {
 	f, err := parser.ParseFile(new(token.FileSet), "foo", `
 package foo
-type IntSet int
-var foo = 42
-func NewIntSet() {}
-func (s IntSet) Add() {}
+var bar = 5
 	`, 0)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	buf := new(bytes.Buffer)
 	err = Copy(Config{
-		From: "github.com/reusee/ccg/set",
-		Params: map[string]string{
-			"T": "int",
-		},
-		Renames: map[string]string{
-			"New": "NewIntSet",
-			"Set": "IntSet",
-		},
-		Writer: buf,
-		Decls:  f.Decls,
+		From:    "github.com/reusee/ccg/testdata/override",
+		Writer:  buf,
+		Decls:   f.Decls,
+		Package: "foo",
 	})
 	if err != nil {
 		t.Fatalf("copy: %v", err)
 	}
-	if !bytes.Equal(buf.Bytes(), []byte(
-		`type IntSet map[int]struct{}
-
-var foo = 42
-
-func NewIntSet() IntSet {
-	return IntSet(make(map[int]struct{}))
-}
-
-func (s IntSet) Add(t int) {
-	s[t] = struct{}{}
-}
-
-func (s IntSet) Del(t int) {
-	delete(s, t)
-}
-
-func (s IntSet) In(t int) (ok bool) {
-	_, ok = s[t]
-	return
-}`)) {
-		pt("generated: %s\n", buf.Bytes())
-		t.Fatal("copy")
-	}
-}
-
-func TestOverride2(t *testing.T) {
-	f, err := parser.ParseFile(new(token.FileSet), "foo", `
-package foo
-var bar = 42
-`, 0)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	buf := new(bytes.Buffer)
-	err = Copy(Config{
-		From:   "github.com/reusee/ccg/testdata/override",
-		Decls:  f.Decls,
-		Writer: buf,
-	})
-	if !bytes.Equal(buf.Bytes(), []byte(
-		`var bar = 5`)) {
-		pt("generated: %s\n", buf.Bytes())
-		t.Fatalf("copy")
-	}
+	expected := readExpected("override/_expected.go")
+	checkResult(expected, buf.Bytes(), t)
 }
 
 func TestNonExistsPackage(t *testing.T) {
@@ -138,17 +90,19 @@ func TestVar(t *testing.T) {
 		Params: map[string]string{
 			"N": "42",
 		},
-		Writer: buf,
+		Writer:  buf,
+		Package: "foo",
 	})
 	if err != nil {
 		t.Fatalf("copy: %v", err)
 	}
-	//TODO
+	expected := readExpected("var/_expected.go")
+	checkResult(expected, buf.Bytes(), t)
 }
 
 func TestNameNotFound(t *testing.T) {
 	err := Copy(Config{
-		From: "github.com/reusee/ccg/set",
+		From: "github.com/reusee/ccg/testdata/var",
 		Params: map[string]string{
 			"FOOBARBAZ": "foobarbaz",
 		},
@@ -156,35 +110,16 @@ func TestNameNotFound(t *testing.T) {
 	if err == nil || !strings.HasPrefix(err.Error(), "ccg: name not found") {
 		t.Fail()
 	}
-	err = Copy(Config{
-		From: "github.com/reusee/ccg/set",
-		Renames: map[string]string{
-			"FOOBARBAZ": "foobarbaz",
-		},
-	})
-	if err == nil || !strings.HasPrefix(err.Error(), "ccg: name not found") {
-		t.Fail()
-	}
 }
 
-func TestPackage(t *testing.T) {
+func TestDeps(t *testing.T) {
 	buf := new(bytes.Buffer)
 	err := Copy(Config{
-		From:    "github.com/reusee/ccg/testdata/var",
-		Writer:  buf,
-		Package: "foo",
+		From:   "github.com/reusee/ccg/testdata/deps",
+		Writer: buf,
 	})
 	if err != nil {
 		t.Fatalf("copy: %v", err)
 	}
-	if !bytes.Equal(buf.Bytes(), []byte(
-		`package foo
-
-var N int
-
-var Num = N
-`)) {
-		pt("generated: %s\n", buf.Bytes())
-		t.Fatal("copy")
-	}
+	//TODO
 }
