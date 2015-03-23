@@ -23,15 +23,14 @@ var (
 )
 
 type Config struct {
-	From        string
-	Params      map[string]string
-	Renames     map[string]string
-	Writer      io.Writer
-	Package     string
-	Decls       []ast.Decl
-	NameFilters []func(string) bool
-	FileSet     *token.FileSet
-	Uses        []string
+	From    string
+	Params  map[string]string
+	Renames map[string]string
+	Writer  io.Writer
+	Package string
+	Decls   []ast.Decl
+	FileSet *token.FileSet
+	Uses    []string
 }
 
 func Copy(config Config) error {
@@ -165,7 +164,6 @@ func Copy(config Config) error {
 	// collect output declarations
 	decls := []ast.Decl{}
 	for _, f := range info.Files {
-	loopSpec:
 		for _, decl := range f.Decls {
 			switch decl := decl.(type) {
 			case *ast.GenDecl:
@@ -177,13 +175,7 @@ func Copy(config Config) error {
 					}
 					for _, spec := range decl.Specs {
 						spec := spec.(*ast.ValueSpec)
-					loopVarName:
 						for i, name := range spec.Names {
-							for _, filter := range config.NameFilters {
-								if !filter(name.Name) {
-									continue loopVarName
-								}
-							}
 							if mutator, ok := existingVars[name.Name]; ok {
 								mutator(spec.Values[i])
 							} else {
@@ -199,15 +191,9 @@ func Copy(config Config) error {
 					newDecl := &ast.GenDecl{
 						Tok: token.TYPE,
 					}
-				loopTypeSpec:
 					for _, spec := range decl.Specs {
 						spec := spec.(*ast.TypeSpec)
 						name := spec.Name.Name
-						for _, filter := range config.NameFilters {
-							if !filter(name) {
-								continue loopTypeSpec
-							}
-						}
 						if mutator, ok := existingTypes[name]; ok {
 							mutator(spec.Type)
 						} else {
@@ -226,11 +212,6 @@ func Copy(config Config) error {
 				name := decl.Name.Name
 				if decl.Recv != nil {
 					name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
-				}
-				for _, filter := range config.NameFilters {
-					if !filter(name) {
-						continue loopSpec
-					}
 				}
 				if mutator, ok := existingFuncs[name]; ok {
 					mutator(decl)
