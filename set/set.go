@@ -20,3 +20,16 @@ func (s Set) In(t T) (ok bool) {
 	_, ok = s[t]
 	return
 }
+
+func (s Set) Each(fn func(T)) {
+	for e := range s {
+		fn(e)
+	}
+}
+
+func (s Set) Slice() (ret []T) {
+	for e := range s {
+		ret = append(ret, e)
+	}
+	return
+}
