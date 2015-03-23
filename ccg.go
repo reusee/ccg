@@ -164,6 +164,7 @@ func Copy(config Config) error {
 	}
 
 	// collect output declarations
+	var newDecls []ast.Decl
 	for _, f := range info.Files {
 		for _, decl := range f.Decls {
 			switch decl := decl.(type) {
@@ -185,7 +186,7 @@ func Copy(config Config) error {
 						}
 					}
 					if len(newDecl.Specs) > 0 {
-						decls = append(decls, newDecl)
+						newDecls = append(newDecls, newDecl)
 					}
 				// type
 				case token.TYPE:
@@ -202,11 +203,11 @@ func Copy(config Config) error {
 						}
 					}
 					if len(newDecl.Specs) > 0 {
-						decls = append(decls, newDecl)
+						newDecls = append(newDecls, newDecl)
 					}
 				// import or const
 				default:
-					decls = append(decls, decl)
+					newDecls = append(newDecls, decl)
 				}
 			// func
 			case *ast.FuncDecl:
@@ -217,38 +218,16 @@ func Copy(config Config) error {
 				if mutator, ok := existingFuncs[name]; ok {
 					mutator(decl)
 				} else {
-					decls = append(decls, decl)
+					newDecls = append(newDecls, decl)
 				}
 			}
 		}
 	}
 
-	var importDecls, newDecls []ast.Decl
-	for _, decl := range decls {
-		// ensure linebreak between decls
-		switch decl := decl.(type) {
-		case *ast.FuncDecl:
-			if decl.Doc == nil {
-				decl.Doc = new(ast.CommentGroup)
-			}
-		case *ast.GenDecl:
-			if decl.Doc == nil {
-				decl.Doc = new(ast.CommentGroup)
-			}
-		}
-		// move import decls to beginning
-		if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.IMPORT {
-			importDecls = append(importDecls, decl)
-			continue
-		}
-		newDecls = append(newDecls, decl)
-	}
-	decls = append(importDecls, newDecls...)
-
-	//TODO put this before merging to existing decls
+	// filter by uses
 	// get function dependencies
 	deps := make(map[types.Object]ObjectSet)
-	for _, decl := range decls {
+	for _, decl := range newDecls {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
 			obj := info.ObjectOf(decl.Name)
@@ -302,7 +281,7 @@ func Copy(config Config) error {
 				break
 			}
 		}
-		decls = AstDecls(decls).Filter(func(decl ast.Decl) bool {
+		newDecls = AstDecls(newDecls).Filter(func(decl ast.Decl) bool {
 			switch decl := decl.(type) {
 			case *ast.FuncDecl:
 				obj := info.ObjectOf(decl.Name)
@@ -311,6 +290,33 @@ func Copy(config Config) error {
 			return true
 		})
 	}
+
+	// merge new and existing decls
+	decls = append(decls, newDecls...)
+
+	// decls tidy ups
+	newDecls = newDecls[0:0]
+	var importDecls []ast.Decl
+	for _, decl := range decls {
+		// ensure linebreak between decls
+		switch decl := decl.(type) {
+		case *ast.FuncDecl:
+			if decl.Doc == nil {
+				decl.Doc = new(ast.CommentGroup)
+			}
+		case *ast.GenDecl:
+			if decl.Doc == nil {
+				decl.Doc = new(ast.CommentGroup)
+			}
+		}
+		// move import decls to beginning
+		if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.IMPORT {
+			importDecls = append(importDecls, decl)
+			continue
+		}
+		newDecls = append(newDecls, decl)
+	}
+	decls = append(importDecls, newDecls...)
 
 	// output
 	if config.Writer != nil {

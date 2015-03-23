@@ -126,3 +126,28 @@ func TestDeps(t *testing.T) {
 	expected := readExpected("deps/_expected.go")
 	checkResult(expected, buf.Bytes(), t)
 }
+
+func TestDepsWithDecls(t *testing.T) {
+	f, err := parser.ParseFile(new(token.FileSet), "foo", `
+package foo
+type B string
+func (b B) Foo() {}
+
+	`, 0)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	buf := new(bytes.Buffer)
+	err = Copy(Config{
+		From:    "github.com/reusee/ccg/testdata/deps",
+		Writer:  buf,
+		Uses:    []string{"T.Foo"},
+		Package: "foo",
+		Decls:   f.Decls,
+	})
+	if err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	expected := readExpected("deps/_expected2.go")
+	checkResult(expected, buf.Bytes(), t)
+}
