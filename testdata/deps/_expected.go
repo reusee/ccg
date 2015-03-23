@@ -2,8 +2,6 @@ package deps
 
 type T int
 
-type B int
-
 func (t T) Foo() {
 	t.Baz()
 }
@@ -13,3 +11,5 @@ func (t T) Bar() {
 }
 
 func (t T) Baz() {}
+
+type B int

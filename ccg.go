@@ -124,7 +124,9 @@ func Copy(config Config) error {
 	existingVars := make(map[string]func(expr ast.Expr))
 	existingTypes := make(map[string]func(expr ast.Expr))
 	existingFuncs := make(map[string]func(fn *ast.FuncDecl))
+	var decls []ast.Decl
 	for i, decl := range config.Decls {
+		decls = append(decls, decl)
 		switch decl := decl.(type) {
 		case *ast.GenDecl:
 			switch decl.Tok {
@@ -156,13 +158,12 @@ func Copy(config Config) error {
 			}
 			i := i
 			existingFuncs[name] = func(fndecl *ast.FuncDecl) {
-				config.Decls[i] = fndecl
+				decls[i] = fndecl
 			}
 		}
 	}
 
 	// collect output declarations
-	decls := []ast.Decl{}
 	for _, f := range info.Files {
 		for _, decl := range f.Decls {
 			switch decl := decl.(type) {
@@ -216,12 +217,11 @@ func Copy(config Config) error {
 				if mutator, ok := existingFuncs[name]; ok {
 					mutator(decl)
 				} else {
-					config.Decls = append(config.Decls, decl)
+					decls = append(decls, decl)
 				}
 			}
 		}
 	}
-	decls = append(decls, config.Decls...)
 
 	var importDecls, newDecls []ast.Decl
 	for _, decl := range decls {
