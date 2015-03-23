@@ -21,7 +21,7 @@ var (
 
 	outputFile  = flag.String("output", "", "output file")
 	packageName = flag.String("package", "", "output package")
-	uses        = flag.String("uses", "", "filter names")
+	uses        = flag.String("uses", "", "comma-separated functions to be used only")
 )
 
 func init() {
@@ -98,29 +98,22 @@ func main() {
 		}
 	}
 
-	nameSet := map[string]struct{}{}
+	var usesNames []string
 	if len(*uses) > 0 {
 		for _, name := range strings.Split(*uses, ",") {
-			nameSet[name] = struct{}{}
+			usesNames = append(usesNames, name)
 		}
-	}
-	filters := []func(string) bool{}
-	if len(nameSet) > 0 {
-		filters = append(filters, func(name string) bool {
-			_, in := nameSet[name]
-			return in
-		})
 	}
 
 	err := ccg.Copy(ccg.Config{
-		From:        "github.com/reusee/ccg/" + args[0],
-		Params:      params,
-		Renames:     renames,
-		Writer:      buf,
-		Package:     *packageName,
-		Decls:       decls,
-		FileSet:     fileSet,
-		NameFilters: filters,
+		From:    "github.com/reusee/ccg/" + args[0],
+		Params:  params,
+		Renames: renames,
+		Writer:  buf,
+		Package: *packageName,
+		Decls:   decls,
+		FileSet: fileSet,
+		Uses:    usesNames,
 	})
 	if err != nil {
 		log.Fatalf("ccg: copy error %v", err)
