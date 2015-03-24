@@ -38,7 +38,7 @@ Now invoke the ccg command to get type specialized codes
  ccg -f pair -t T1=int,T2=string -r Pair=IntStrPair,New=NewIntStrPair
 ```
 
-The above command produces:
+The above command generates:
 
 ```go
 type IntStrPair struct {
@@ -79,14 +79,14 @@ So it's friendly to go generate
 ```
 
 # Example 2: partial generation
-By default, ccg will produce all declarations from template package (except params).
-If this is not what you want, you can use -u option to specify what to produce
+By default, ccg will generate all declarations from template package (except params).
+If this is not what you want, you can use -u option to specify what to generate
 
 ```
  ccg -f pair -t T1=int,T2=string -r Pair=IntStrPair,New=NewIntStrPair -u NewIntStrPair,IntStrPair.First
 ```
 
-The above command produces:
+The above command generates:
 
 ```go
 type IntStrPair struct {
@@ -103,4 +103,4 @@ func (p IntStrPair) First() int {
 }
 ```
 
-Method Second is not produced. And type IntStrPair is automatically produced because it's used by NewIntStrPair and First method.
+Method Second is not generated. And type IntStrPair is automatically generated because it's used by NewIntStrPair and First method.
