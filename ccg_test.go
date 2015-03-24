@@ -55,7 +55,11 @@ func TestCopy(t *testing.T) {
 func TestOverride(t *testing.T) {
 	f, err := parser.ParseFile(new(token.FileSet), "foo", `
 package foo
+import "fmt"
+import ft "fmt"
+var foo = fmt.Printf
 var bar = 5
+var baz =ft.Printf
 	`, 0)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
@@ -101,9 +105,20 @@ func TestVar(t *testing.T) {
 }
 
 func TestNameNotFound(t *testing.T) {
+	// params
 	err := Copy(Config{
 		From: "github.com/reusee/ccg/testdata/var",
 		Params: map[string]string{
+			"FOOBARBAZ": "foobarbaz",
+		},
+	})
+	if err == nil || !strings.HasPrefix(err.Error(), "ccg: name not found") {
+		t.Fail()
+	}
+	// renames
+	err = Copy(Config{
+		From: "github.com/reusee/ccg/testdata/var",
+		Renames: map[string]string{
 			"FOOBARBAZ": "foobarbaz",
 		},
 	})

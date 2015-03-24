@@ -191,7 +191,23 @@ func Copy(config Config) error {
 					if len(newDecl.Specs) > 0 {
 						newDecls = append(newDecls, newDecl)
 					}
-				case token.CONST: //TODO
+				case token.CONST:
+					newDecl := &ast.GenDecl{
+						Tok: token.CONST,
+					}
+					for _, spec := range decl.Specs {
+						spec := spec.(*ast.ValueSpec)
+						for i, name := range spec.Names {
+							if mutator, ok := existingDecls[name.Name]; ok {
+								mutator(spec.Values[i])
+							} else {
+								newDecl.Specs = append(newDecl.Specs, spec)
+							}
+						}
+					}
+					if len(newDecl.Specs) > 0 {
+						newDecls = append(newDecls, newDecl)
+					}
 				case token.IMPORT:
 					newDecl := &ast.GenDecl{
 						Tok: token.IMPORT,
