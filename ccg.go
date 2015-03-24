@@ -47,47 +47,17 @@ func Copy(config Config) error {
 
 	// remove param declarations
 	for _, f := range info.Files {
-		f.Decls = AstDecls(f.Decls).Filter(func(decl ast.Decl) (ret bool) {
-			switch decl := decl.(type) {
-			case *ast.GenDecl:
-				switch decl.Tok {
-				case token.TYPE:
-					decl.Specs = AstSpecs(decl.Specs).Filter(func(spec ast.Spec) bool {
-						name := spec.(*ast.TypeSpec).Name.Name
-						_, exists := config.Params[name]
-						return !exists
-					})
-					ret = len(decl.Specs) > 0
-				case token.VAR:
-					decl.Specs = AstSpecs(decl.Specs).Filter(func(sp ast.Spec) bool {
-						spec := sp.(*ast.ValueSpec)
-						names := []*ast.Ident{}
-						values := []ast.Expr{}
-						for i, name := range spec.Names {
-							if _, exists := config.Params[name.Name]; !exists {
-								names = append(names, name)
-								if i < len(spec.Values) {
-									values = append(values, spec.Values[i])
-								}
-							}
-						}
-						spec.Names = names
-						if len(values) == 0 {
-							spec.Values = nil
-						} else {
-							spec.Values = values
-						}
-						return len(spec.Names) > 0
-					})
-					ret = len(decl.Specs) > 0
-				case token.CONST: //TODO
-				default:
-					return true
-				}
-			default:
-				return true
+		f.Decls = filterDecls(f.Decls, func(node interface{}) bool {
+			switch node := node.(type) {
+			case *ast.TypeSpec:
+				name := node.Name.Name
+				_, exists := config.Params[name]
+				return !exists
+			case ValueInfo:
+				_, exists := config.Params[node.Name.Name]
+				return !exists
 			}
-			return
+			return true
 		})
 	}
 
@@ -297,26 +267,15 @@ func Copy(config Config) error {
 				break
 			}
 		}
-		newDecls = AstDecls(newDecls).Filter(func(decl ast.Decl) (ret bool) {
-			switch decl := decl.(type) {
+		// filter
+		newDecls = filterDecls(newDecls, func(node interface{}) bool {
+			switch node := node.(type) {
 			case *ast.FuncDecl:
-				obj := info.ObjectOf(decl.Name)
-				return uses.In(obj)
-			case *ast.GenDecl:
-				switch decl.Tok {
-				case token.TYPE:
-					decl.Specs = AstSpecs(decl.Specs).Filter(func(spec ast.Spec) bool {
-						obj := info.ObjectOf(spec.(*ast.TypeSpec).Name)
-						return uses.In(obj)
-					})
-					ret = len(decl.Specs) > 0
-				default:
-					ret = true
-				}
-			default:
-				ret = true
+				return uses.In(info.ObjectOf(node.Name))
+			case *ast.TypeSpec:
+				return uses.In(info.ObjectOf(node.Name))
 			}
-			return
+			return true
 		})
 	}
 
@@ -379,4 +338,55 @@ type astVisitor func(ast.Node) astVisitor
 
 func (v astVisitor) Visit(node ast.Node) ast.Visitor {
 	return v(node)
+}
+
+type ValueInfo struct {
+	Name  *ast.Ident
+	Value ast.Expr
+	Type  ast.Expr
+}
+
+func filterDecls(decls []ast.Decl, fn func(interface{}) bool) []ast.Decl {
+	decls = AstDecls(decls).Filter(func(decl ast.Decl) (ret bool) {
+		switch decl := decl.(type) {
+		case *ast.FuncDecl:
+			return fn(decl)
+		case *ast.GenDecl:
+			switch decl.Tok {
+			case token.VAR, token.CONST:
+				decl.Specs = AstSpecs(decl.Specs).Filter(func(sp ast.Spec) bool {
+					spec := sp.(*ast.ValueSpec)
+					names := []*ast.Ident{}
+					values := []ast.Expr{}
+					for i, name := range spec.Names {
+						var value ast.Expr
+						if i < len(spec.Values) {
+							value = spec.Values[i]
+						}
+						if fn(ValueInfo{name, value, spec.Type}) {
+							names = append(names, name)
+							if value != nil {
+								values = append(values, value)
+							}
+						}
+					}
+					spec.Names = names
+					if len(values) == 0 {
+						spec.Values = nil
+					} else {
+						spec.Values = values
+					}
+					return len(spec.Names) > 0
+				})
+				return len(decl.Specs) > 0
+			case token.TYPE, token.IMPORT:
+				decl.Specs = AstSpecs(decl.Specs).Filter(func(spec ast.Spec) bool {
+					return fn(spec)
+				})
+				return len(decl.Specs) > 0
+			}
+		}
+		return
+	})
+	return decls
 }
