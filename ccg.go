@@ -126,7 +126,13 @@ func Copy(config Config) error {
 					spec := spec.(*ast.ImportSpec)
 					i := i
 					decl := decl
-					existingDecls[spec.Name.Name] = func(path interface{}) {
+					var name string
+					if spec.Name == nil {
+						name = spec.Path.Value
+					} else {
+						name = spec.Name.Name
+					}
+					existingDecls[name] = func(path interface{}) {
 						decl.Specs[i].(*ast.ImportSpec).Path = path.(*ast.BasicLit)
 					}
 				}
@@ -192,7 +198,12 @@ func Copy(config Config) error {
 					}
 					for _, spec := range decl.Specs {
 						spec := spec.(*ast.ImportSpec)
-						name := spec.Name.Name
+						var name string
+						if spec.Name == nil {
+							name = spec.Path.Value
+						} else {
+							name = spec.Name.Name
+						}
 						if mutator, ok := existingDecls[name]; ok {
 							mutator(spec.Path)
 						} else {

@@ -166,3 +166,17 @@ func TestDeps2(t *testing.T) {
 	expected := readExpected("deps/_expected3.go")
 	checkResult(expected, buf.Bytes(), t)
 }
+
+func TestImport(t *testing.T) {
+	buf := new(bytes.Buffer)
+	err := Copy(Config{
+		From:    "github.com/reusee/ccg/testdata/import",
+		Writer:  buf,
+		Package: "foo",
+	})
+	if err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	expected := readExpected("import/_expected.go")
+	checkResult(expected, buf.Bytes(), t)
+}
