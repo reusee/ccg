@@ -80,6 +80,7 @@ func Copy(config Config) error {
 						return len(spec.Names) > 0
 					})
 					ret = len(decl.Specs) > 0
+				case token.CONST: //TODO
 				default:
 					return true
 				}
@@ -152,6 +153,7 @@ func Copy(config Config) error {
 						decl.Specs[i].(*ast.TypeSpec).Type = expr
 					}
 				}
+			case token.IMPORT: //TODO
 			}
 		case *ast.FuncDecl:
 			name := decl.Name.Name
@@ -207,7 +209,8 @@ func Copy(config Config) error {
 					if len(newDecl.Specs) > 0 {
 						newDecls = append(newDecls, newDecl)
 					}
-				// import or const
+				case token.CONST: //TODO
+				// import
 				default:
 					newDecls = append(newDecls, decl)
 				}
@@ -226,7 +229,6 @@ func Copy(config Config) error {
 		}
 	}
 
-	// filter by uses
 	// get function dependencies
 	deps := make(map[types.Object]ObjectSet)
 	for _, decl := range newDecls {
@@ -279,7 +281,7 @@ func Copy(config Config) error {
 		}
 	}
 
-	// filter
+	// filter by uses
 	if len(uses) > 0 {
 		// calculate uses closure
 		for {
