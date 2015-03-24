@@ -1,81 +1,82 @@
-# ccg
-ccg generates codes from existing template package.
+# Introduction
+ccg is a template-based code generation tool for golang.
 
-features
-* no DSL for template
-* no directive comments
-
-# install
+# Install
 ```
 go get github.com/reusee/ccg/cmd/ccg
+
 ```
 
-# command example
+# Example 0: parameterized types
+First define the type
 
-### sorter
-```
-ccg -from github.com/reusee/ccg/sorter -params T=[]byte -renames Sorter=BytesSorter
-```
-output
 ```go
-type BytesSorter struct {
-  Slice [][]byte
-  Cmp   func(a, b []byte) bool
+package pair
+
+type T1 interface{}
+type T2 interface{}
+
+type Pair struct {
+ first  T1
+ second T2
 }
 
-func (s BytesSorter) Len() int {
-  return len(s.Slice)
+func (p Pair) First() T1 {
+ return p.first
 }
 
-func (s BytesSorter) Less(i, j int) bool {
-  return s.Cmp(s.Slice[i], s.Slice[j])
-}
-
-func (s BytesSorter) Swap(i, j int) {
-  s.Slice[i], s.Slice[j] = s.Slice[j], s.Slice[i]
+func (p Pair) Second() T2 {
+ return p.second
 }
 ```
 
-### set
+Then put this package to a importable path, assuming $GOPATH/src/pair
+
+Now invoke the ccg command to get type specialized codes
+
+```bash
+ ccg -f pair -t T1=int,T2=string -r Pair=IntStrPair,New=NewIntStrPair
 ```
-ccg -from github.com/reusee/ccg/set -params T=string -renames Set=StrSet,New=NewStrSet -package foobar
-```
-output
+
+The above command produces:
+
 ```go
-package foobar
-
-type StrSet map[string]struct{}
-
-func NewStrSet() StrSet {
-  return StrSet(make(map[string]struct{}))
+type IntStrPair struct {
+ first  int
+ second string
 }
 
-func (s StrSet) Add(t string) {
-  s[t] = struct{}{}
+func NewIntStrPair(first int, second string) IntStrPair {
+ return IntStrPair{first, second}
 }
 
-func (s StrSet) Del(t string) {
-  delete(s, t)
+func (p IntStrPair) First() int {
+ return p.first
 }
 
-func (s StrSet) In(t string) (ok bool) {
-  _, ok = s[t]
-  return
+func (p IntStrPair) Second() string {
+ return p.second
 }
 ```
 
-# writing template package
-Any package with placeholder type defined can be used as template.
+Type T1 and T2 are substituted by int and string. Pair and New are also renamed.
 
-Check following packages for example
-* https://github.com/reusee/ccg/tree/master/sorter
-* https://github.com/reusee/ccg/tree/master/set
-* https://github.com/reusee/ccg/tree/master/infchan
+# Example 1: output to file / update existing file
+Use option -o to write generated codes to a file instead of stdout.
 
-# others
+```bash
+ ccg -f pair -t T1=int,T2=string -r Pair=IntStrPair,New=NewIntStrPair -o foo.go
+```
 
-### command is too verbose
-write a wrapper (e.g. https://github.com/reusee/ccg/tree/master/cmd/myccg) or define shell aliases
+If the specified file is already exists, ccg will update declarations if they're present in that file, or append to if not.
+Other non-generated declarations will be preserved.
 
-### insert outputs to vim
-:read !ccg [args...]
+This means after updating template codes, you can re-invoke the command to update generated codes.
+So it's friendly to go generate
+
+```go
+//go:generate ccg -f pair -t T1=int,T2=string -r Pair=IntStrPair,New=NewIntStrPair -o foo.go
+```
+
+# Example 2: partial generation
+TODO
