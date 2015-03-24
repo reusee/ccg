@@ -79,4 +79,28 @@ So it's friendly to go generate
 ```
 
 # Example 2: partial generation
-TODO
+By default, ccg will produce all declarations from template package (except params).
+If this is not what you want, you can use -u option to specify what to produce
+
+```
+ ccg -f pair -t T1=int,T2=string -r Pair=IntStrPair,New=NewIntStrPair -u NewIntStrPair,IntStrPair.First
+```
+
+The above command produces:
+
+```go
+type IntStrPair struct {
+  first  int
+  second string
+}
+
+func NewIntStrPair(first int, second string) IntStrPair {
+  return IntStrPair{first, second}
+}
+
+func (p IntStrPair) First() int {
+  return p.first
+}
+```
+
+Method Second is not produced. And type IntStrPair is automatically produced because it's used by NewIntStrPair and First method.
