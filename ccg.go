@@ -53,7 +53,7 @@ func Copy(config Config) error {
 				name := node.Name.Name
 				_, exists := config.Params[name]
 				return !exists
-			case ValueInfo:
+			case valueInfo:
 				_, exists := config.Params[node.Name.Name]
 				return !exists
 			}
@@ -340,7 +340,7 @@ func (v astVisitor) Visit(node ast.Node) ast.Visitor {
 	return v(node)
 }
 
-type ValueInfo struct {
+type valueInfo struct {
 	Name  *ast.Ident
 	Value ast.Expr
 	Type  ast.Expr
@@ -363,7 +363,7 @@ func filterDecls(decls []ast.Decl, fn func(interface{}) bool) []ast.Decl {
 						if i < len(spec.Values) {
 							value = spec.Values[i]
 						}
-						if fn(ValueInfo{name, value, spec.Type}) {
+						if fn(valueInfo{name, value, spec.Type}) {
 							names = append(names, name)
 							if value != nil {
 								values = append(values, value)
