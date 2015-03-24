@@ -101,7 +101,7 @@ func Copy(config Config) error {
 		switch decl := decl.(type) {
 		case *ast.GenDecl:
 			switch decl.Tok {
-			case token.VAR:
+			case token.VAR, token.CONST:
 				for _, spec := range decl.Specs {
 					spec := spec.(*ast.ValueSpec)
 					for i, name := range spec.Names {
@@ -156,10 +156,9 @@ func Copy(config Config) error {
 			switch decl := decl.(type) {
 			case *ast.GenDecl:
 				switch decl.Tok {
-				// var
-				case token.VAR:
+				case token.VAR, token.CONST:
 					newDecl := &ast.GenDecl{
-						Tok: token.VAR,
+						Tok: decl.Tok,
 					}
 					for _, spec := range decl.Specs {
 						spec := spec.(*ast.ValueSpec)
@@ -174,7 +173,6 @@ func Copy(config Config) error {
 					if len(newDecl.Specs) > 0 {
 						newDecls = append(newDecls, newDecl)
 					}
-				// type
 				case token.TYPE:
 					newDecl := &ast.GenDecl{
 						Tok: token.TYPE,
@@ -186,23 +184,6 @@ func Copy(config Config) error {
 							mutator(spec.Type)
 						} else {
 							newDecl.Specs = append(newDecl.Specs, spec)
-						}
-					}
-					if len(newDecl.Specs) > 0 {
-						newDecls = append(newDecls, newDecl)
-					}
-				case token.CONST:
-					newDecl := &ast.GenDecl{
-						Tok: token.CONST,
-					}
-					for _, spec := range decl.Specs {
-						spec := spec.(*ast.ValueSpec)
-						for i, name := range spec.Names {
-							if mutator, ok := existingDecls[name.Name]; ok {
-								mutator(spec.Values[i])
-							} else {
-								newDecl.Specs = append(newDecl.Specs, spec)
-							}
 						}
 					}
 					if len(newDecl.Specs) > 0 {
@@ -230,7 +211,6 @@ func Copy(config Config) error {
 						newDecls = append(newDecls, newDecl)
 					}
 				}
-			// func
 			case *ast.FuncDecl:
 				name := decl.Name.Name
 				if decl.Recv != nil {

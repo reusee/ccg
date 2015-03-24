@@ -60,6 +60,7 @@ import ft "fmt"
 var foo = fmt.Printf
 var bar = 5
 var baz =ft.Printf
+const c = 5
 	`, 0)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
