@@ -103,4 +103,4 @@ func (p IntStrPair) First() int {
 }
 ```
 
-Method Second is not generated. And type IntStrPair is automatically generated because it's used by NewIntStrPair and First method.
+Method Second is not generated. And type IntStrPair is automatically generated because it's depended by NewIntStrPair and First method.
