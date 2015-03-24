@@ -94,9 +94,7 @@ func Copy(config Config) error {
 	rename(info.Uses)
 
 	// collect existing decls
-	existingVars := make(map[string]func(expr ast.Expr))
-	existingTypes := make(map[string]func(expr ast.Expr))
-	existingFuncs := make(map[string]func(fn *ast.FuncDecl))
+	existingDecls := make(map[string]func(interface{}))
 	var decls []ast.Decl
 	for i, decl := range config.Decls {
 		decls = append(decls, decl)
@@ -109,8 +107,8 @@ func Copy(config Config) error {
 					for i, name := range spec.Names {
 						i := i
 						spec := spec
-						existingVars[name.Name] = func(expr ast.Expr) {
-							spec.Values[i] = expr
+						existingDecls[name.Name] = func(expr interface{}) {
+							spec.Values[i] = expr.(ast.Expr)
 						}
 					}
 				}
@@ -119,11 +117,19 @@ func Copy(config Config) error {
 					spec := spec.(*ast.TypeSpec)
 					i := i
 					decl := decl
-					existingTypes[spec.Name.Name] = func(expr ast.Expr) {
-						decl.Specs[i].(*ast.TypeSpec).Type = expr
+					existingDecls[spec.Name.Name] = func(expr interface{}) {
+						decl.Specs[i].(*ast.TypeSpec).Type = expr.(ast.Expr)
 					}
 				}
-			case token.IMPORT: //TODO
+			case token.IMPORT:
+				for i, spec := range decl.Specs {
+					spec := spec.(*ast.ImportSpec)
+					i := i
+					decl := decl
+					existingDecls[spec.Name.Name] = func(path interface{}) {
+						decl.Specs[i].(*ast.ImportSpec).Path = path.(*ast.BasicLit)
+					}
+				}
 			}
 		case *ast.FuncDecl:
 			name := decl.Name.Name
@@ -131,8 +137,8 @@ func Copy(config Config) error {
 				name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
 			}
 			i := i
-			existingFuncs[name] = func(fndecl *ast.FuncDecl) {
-				decls[i] = fndecl
+			existingDecls[name] = func(fndecl interface{}) {
+				decls[i] = fndecl.(*ast.FuncDecl)
 			}
 		}
 	}
@@ -152,7 +158,7 @@ func Copy(config Config) error {
 					for _, spec := range decl.Specs {
 						spec := spec.(*ast.ValueSpec)
 						for i, name := range spec.Names {
-							if mutator, ok := existingVars[name.Name]; ok {
+							if mutator, ok := existingDecls[name.Name]; ok {
 								mutator(spec.Values[i])
 							} else {
 								newDecl.Specs = append(newDecl.Specs, spec)
@@ -170,7 +176,7 @@ func Copy(config Config) error {
 					for _, spec := range decl.Specs {
 						spec := spec.(*ast.TypeSpec)
 						name := spec.Name.Name
-						if mutator, ok := existingTypes[name]; ok {
+						if mutator, ok := existingDecls[name]; ok {
 							mutator(spec.Type)
 						} else {
 							newDecl.Specs = append(newDecl.Specs, spec)
@@ -180,9 +186,22 @@ func Copy(config Config) error {
 						newDecls = append(newDecls, newDecl)
 					}
 				case token.CONST: //TODO
-				// import
-				default:
-					newDecls = append(newDecls, decl)
+				case token.IMPORT:
+					newDecl := &ast.GenDecl{
+						Tok: token.IMPORT,
+					}
+					for _, spec := range decl.Specs {
+						spec := spec.(*ast.ImportSpec)
+						name := spec.Name.Name
+						if mutator, ok := existingDecls[name]; ok {
+							mutator(spec.Path)
+						} else {
+							newDecl.Specs = append(newDecl.Specs, spec)
+						}
+					}
+					if len(newDecl.Specs) > 0 {
+						newDecls = append(newDecls, newDecl)
+					}
 				}
 			// func
 			case *ast.FuncDecl:
@@ -190,7 +209,7 @@ func Copy(config Config) error {
 				if decl.Recv != nil {
 					name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
 				}
-				if mutator, ok := existingFuncs[name]; ok {
+				if mutator, ok := existingDecls[name]; ok {
 					mutator(decl)
 				} else {
 					newDecls = append(newDecls, decl)
