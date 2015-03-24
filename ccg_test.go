@@ -52,6 +52,26 @@ func TestCopy(t *testing.T) {
 	checkResult(expected, buf.Bytes(), t)
 }
 
+func TestCopy2(t *testing.T) {
+	buf := new(bytes.Buffer)
+	err := Copy(Config{
+		From: "github.com/reusee/ccg/testdata/copy",
+		Params: map[string]string{
+			"T": "int",
+		},
+		Renames: map[string]string{
+			"Ts":  "Ints",
+			"Foo": "NewInts",
+		},
+		Writer: buf,
+	})
+	if err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	expected := readExpected("copy/_expected2.go")
+	checkResult(bytes.TrimSpace(expected), bytes.TrimSpace(buf.Bytes()), t)
+}
+
 func TestOverride(t *testing.T) {
 	f, err := parser.ParseFile(new(token.FileSet), "foo", `
 package foo
@@ -195,4 +215,46 @@ func TestImport(t *testing.T) {
 	}
 	expected := readExpected("import/_expected.go")
 	checkResult(expected, buf.Bytes(), t)
+}
+
+func TestInvalidUses(t *testing.T) {
+	err := Copy(Config{
+		From: "github.com/reusee/ccg/testdata/copy",
+		Uses: []string{"foo.bar.baz"},
+	})
+	if err == nil || err.Error() != "invalid use spec: foo.bar.baz" {
+		t.Fail()
+	}
+}
+
+func TestRetypeWithUses(t *testing.T) {
+	buf := new(bytes.Buffer)
+	err := Copy(Config{
+		From: "github.com/reusee/ccg/testdata/uses",
+		Params: map[string]string{
+			"T": "string",
+		},
+		Renames: map[string]string{
+			"Ts":  "Strings",
+			"Foo": "FOO",
+		},
+		Writer:  buf,
+		Uses:    []string{"Strings.Foo", "FOO", "baz"},
+		Package: "foo",
+	})
+	if err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	expected := readExpected("uses/_expected.go")
+	checkResult(expected, buf.Bytes(), t)
+}
+
+func TestInvalidUsesType(t *testing.T) {
+	err := Copy(Config{
+		From: "github.com/reusee/ccg/testdata/uses",
+		Uses: []string{"QWERTY.Foo"},
+	})
+	if err == nil || err.Error() != "QWERTY is not a type" {
+		t.Fail()
+	}
 }

@@ -300,6 +300,8 @@ func Copy(config Config) error {
 				return uses.In(info.ObjectOf(node.Name))
 			case *ast.TypeSpec:
 				return uses.In(info.ObjectOf(node.Name))
+			case valueInfo:
+				return uses.In(info.ObjectOf(node.Name))
 			}
 			return true
 		})
@@ -376,7 +378,7 @@ func filterDecls(decls []ast.Decl, fn func(interface{}) bool) []ast.Decl {
 	decls = AstDecls(decls).Filter(func(decl ast.Decl) (ret bool) {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
-			return fn(decl)
+			ret = fn(decl)
 		case *ast.GenDecl:
 			switch decl.Tok {
 			case token.VAR, token.CONST:
@@ -404,12 +406,12 @@ func filterDecls(decls []ast.Decl, fn func(interface{}) bool) []ast.Decl {
 					}
 					return len(spec.Names) > 0
 				})
-				return len(decl.Specs) > 0
+				ret = len(decl.Specs) > 0
 			case token.TYPE, token.IMPORT:
 				decl.Specs = AstSpecs(decl.Specs).Filter(func(spec ast.Spec) bool {
 					return fn(spec)
 				})
-				return len(decl.Specs) > 0
+				ret = len(decl.Specs) > 0
 			}
 		}
 		return
