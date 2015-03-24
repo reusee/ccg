@@ -106,7 +106,7 @@ func main() {
 	}
 
 	err = ccg.Copy(ccg.Config{
-		From:    "github.com/reusee/ccg/" + args[0],
+		From:    "github.com/reusee/codes/" + args[0],
 		Params:  params,
 		Renames: renames,
 		Writer:  buf,
