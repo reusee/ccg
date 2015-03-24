@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,23 +12,25 @@ import (
 	"go/parser"
 	"go/token"
 
+	"github.com/jessevdk/go-flags"
 	"github.com/reusee/ccg"
 )
 
 var (
 	pt = fmt.Printf
-
-	outputFile  = flag.String("o", "", "output file")
-	packageName = flag.String("p", "", "output package")
-	uses        = flag.String("u", "", "comma-separated names to be used only")
 )
 
-func init() {
-	flag.Parse()
+var opts struct {
+	Output  string `short:"o" long:"output" description:"Output file path"`
+	Package string `short:"p" long:"package" description:"Output package name"`
+	Uses    string `short:"u" long:"uses" description:"comma-separated names to be used only"`
 }
 
 func main() {
-	args := flag.Args()
+	args, err := flags.Parse(&opts)
+	if err != nil {
+		log.Fatal(err)
+	}
 	if len(args) < 1 {
 		pt("usage: %s [command] [args...]\n", os.Args[0])
 		return
@@ -84,33 +85,32 @@ func main() {
 	buf := new(bytes.Buffer)
 	var decls []ast.Decl
 	fileSet := new(token.FileSet)
-	if *outputFile != "" {
-		content, err := ioutil.ReadFile(*outputFile)
+	if opts.Output != "" {
+		content, err := ioutil.ReadFile(opts.Output)
 		if err == nil {
-			astFile, err := parser.ParseFile(fileSet, *outputFile, content, 0)
+			astFile, err := parser.ParseFile(fileSet, opts.Output, content, 0)
 			if err == nil {
 				decls = astFile.Decls
 			}
 		}
-		if *packageName == "" {
-			main := "main"
-			packageName = &main
+		if opts.Package == "" {
+			opts.Package = "main"
 		}
 	}
 
 	var usesNames []string
-	if len(*uses) > 0 {
-		for _, name := range strings.Split(*uses, ",") {
+	if len(opts.Uses) > 0 {
+		for _, name := range strings.Split(opts.Uses, ",") {
 			usesNames = append(usesNames, name)
 		}
 	}
 
-	err := ccg.Copy(ccg.Config{
+	err = ccg.Copy(ccg.Config{
 		From:    "github.com/reusee/ccg/" + args[0],
 		Params:  params,
 		Renames: renames,
 		Writer:  buf,
-		Package: *packageName,
+		Package: opts.Package,
 		Decls:   decls,
 		FileSet: fileSet,
 		Uses:    usesNames,
@@ -118,10 +118,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("ccg: copy error %v", err)
 	}
-	if *outputFile == "" {
+	if opts.Output == "" {
 		pt("%s\n", buf.Bytes())
 	} else {
-		err = ioutil.WriteFile(*outputFile, buf.Bytes(), 0644)
+		err = ioutil.WriteFile(opts.Output, buf.Bytes(), 0644)
 		if err != nil {
 			log.Fatalf("ccg: write file error %v", err)
 		}
