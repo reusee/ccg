@@ -1,8 +1,8 @@
 package ccg
 
-//go:generate myccg -u AstDecls.Filter -p ccg -o utils.go slice ast.Decl AstDecls
-//go:generate myccg -u AstSpecs.Filter -p ccg -o utils.go slice ast.Spec AstSpecs
-//go:generate myccg -u ObjectSet.Add,ObjectSet.In,NewObjectSet -p ccg -o utils.go set types.Object ObjectSet NewObjectSet
+//go:generate myccg -u AstDecls.Filter -o utils.go slice ast.Decl AstDecls
+//go:generate myccg -u AstSpecs.Filter -o utils.go slice ast.Spec AstSpecs
+//go:generate myccg -u ObjectSet.Add,ObjectSet.In,NewObjectSet -o utils.go set types.Object ObjectSet NewObjectSet
 
 import (
 	"bytes"
