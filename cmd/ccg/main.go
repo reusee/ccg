@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"path/filepath"
 	"strings"
 
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/token"
 
@@ -74,7 +76,12 @@ func main() {
 			}
 		}
 		if opts.Package == "" {
-			opts.Package = "main"
+			buildPkg, _ := build.Default.ImportDir(filepath.Dir(opts.Output), 0)
+			if buildPkg.Name != "" {
+				opts.Package = buildPkg.Name
+			} else {
+				opts.Package = "main"
+			}
 		}
 	}
 
