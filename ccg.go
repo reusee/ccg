@@ -227,24 +227,28 @@ func Copy(config Config) error {
 
 	// get function dependencies
 	deps := make(map[types.Object]ObjectSet)
-	for _, decl := range newDecls {
-		switch decl := decl.(type) {
-		case *ast.FuncDecl:
-			obj := info.ObjectOf(decl.Name)
-			set := NewObjectSet()
-			var visitor astVisitor
-			visitor = func(node ast.Node) astVisitor {
-				switch node := node.(type) {
-				case *ast.Ident:
-					dep := info.ObjectOf(node)
-					set.Add(dep)
+	collectDeps := func(decls []ast.Decl) {
+		for _, decl := range decls {
+			switch decl := decl.(type) {
+			case *ast.FuncDecl:
+				obj := info.ObjectOf(decl.Name)
+				set := NewObjectSet()
+				var visitor astVisitor
+				visitor = func(node ast.Node) astVisitor {
+					switch node := node.(type) {
+					case *ast.Ident:
+						dep := info.ObjectOf(node)
+						set.Add(dep)
+					}
+					return visitor
 				}
-				return visitor
+				ast.Walk(visitor, decl)
+				deps[obj] = set
 			}
-			ast.Walk(visitor, decl)
-			deps[obj] = set
 		}
 	}
+	collectDeps(newDecls)
+	collectDeps(decls)
 
 	// get uses objects
 	uses := NewObjectSet()
