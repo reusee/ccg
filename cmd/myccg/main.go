@@ -45,11 +45,6 @@ func main() {
 	}
 
 	specs := map[string]CmdSpec{
-		"sorter": {
-			"[element type] [sorter name]",
-			[]string{"T"},
-			[]string{"Sorter"},
-		},
 		"set": {
 			"[element type] [set type] [constructor name]",
 			[]string{"T"},
