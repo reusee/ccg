@@ -8,9 +8,12 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/format"
 	"go/token"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/tools/go/loader"
@@ -20,29 +23,44 @@ import (
 
 var (
 	pt = fmt.Printf
+	sp = fmt.Sprintf
 )
 
+func checkErr(msg string, err error) {
+	if err != nil {
+		panic(fmt.Errorf("%s error: %v", msg, err))
+	}
+}
+
 type Config struct {
+	// generation options
 	From    string
 	Params  map[string]string
 	Renames map[string]string
-	Writer  io.Writer
-	Package string
 	Decls   []ast.Decl
 	FileSet *token.FileSet
 	Uses    []string
+
+	// output options
+	Writer     io.Writer
+	Package    string
+	OutputFile string
 }
 
-func Copy(config Config) error {
+func Copy(config Config) (ret error) {
+	defer func() {
+		if p := recover(); p != nil {
+			ret = p.(error)
+		}
+	}()
+
 	// load package
 	loadConf := loader.Config{
 		Fset: config.FileSet,
 	}
 	loadConf.Import(config.From)
 	program, err := loadConf.Load()
-	if err != nil {
-		return fmt.Errorf("ccg: load package %v", err)
-	}
+	checkErr("ccg: load package", err)
 	info := program.Imported[config.From]
 
 	// remove param declarations
@@ -68,19 +86,17 @@ func Copy(config Config) error {
 		for from, to := range mapping {
 			obj := info.Pkg.Scope().Lookup(from)
 			if obj == nil {
-				return fmt.Errorf("ccg: name not found %s", from)
+				return fmt.Errorf("name not found %s", from)
 			}
 			objects[obj] = to
 			renamed[to] = from
 		}
 		return nil
 	}
-	if err := collectObjects(config.Params); err != nil {
-		return err
-	}
-	if err := collectObjects(config.Renames); err != nil {
-		return err
-	}
+	err = collectObjects(config.Params)
+	checkErr("ccg: process", err)
+	err = collectObjects(config.Renames)
+	checkErr("ccg: process", err)
 
 	// rename
 	rename := func(defs map[*ast.Ident]types.Object) {
@@ -336,29 +352,37 @@ func Copy(config Config) error {
 	decls = append(importDecls, newDecls...)
 
 	// output
-	if config.Writer != nil {
-		if config.Package != "" { // output complete file
-			file := &ast.File{
-				Name:  ast.NewIdent(config.Package),
-				Decls: decls,
-			}
-			buf := new(bytes.Buffer)
-			err = format.Node(buf, program.Fset, file)
-			if err != nil { //NOCOVER
-				return fmt.Errorf("ccg: format output %v", err)
-			}
-			bs, err := imports.Process("", buf.Bytes(), nil)
-			if err != nil { //NOCOVER
-				return fmt.Errorf("ccg: format output %v", err)
-			}
-			config.Writer.Write(bs)
-		} else { // output decls only
-			err = format.Node(config.Writer, program.Fset, decls)
-			if err != nil { //NOCOVER
-				return fmt.Errorf("ccg: format output %v", err)
-			}
+	if config.Writer == nil {
+		config.Writer = os.Stdout
+	}
+	if config.OutputFile != "" && config.Package == "" { // detect package name
+		buildPkg, _ := build.Default.ImportDir(filepath.Dir(config.OutputFile), 0)
+		if buildPkg.Name != "" {
+			config.Package = buildPkg.Name
+		} else {
+			config.Package = "main"
 		}
 	}
+	var src interface{}
+	if config.Package != "" {
+		src = &ast.File{
+			Name:  ast.NewIdent(config.Package),
+			Decls: decls,
+		}
+	} else {
+		src = decls
+	}
+	buf := new(bytes.Buffer)
+	err = format.Node(buf, program.Fset, src)
+	checkErr("ccg: format", err)
+	var bs []byte
+	if config.Package != "" {
+		bs, err = imports.Process("", buf.Bytes(), nil)
+		checkErr("ccg: imports", err)
+	} else {
+		bs = buf.Bytes()
+	}
+	config.Writer.Write(bs)
 
 	return nil
 }

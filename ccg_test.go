@@ -133,7 +133,7 @@ func TestNameNotFound(t *testing.T) {
 			"FOOBARBAZ": "foobarbaz",
 		},
 	})
-	if err == nil || !strings.HasPrefix(err.Error(), "ccg: name not found") {
+	if err == nil || !strings.HasPrefix(err.Error(), "ccg: process error: name not found") {
 		t.Fail()
 	}
 	// renames
@@ -143,7 +143,7 @@ func TestNameNotFound(t *testing.T) {
 			"FOOBARBAZ": "foobarbaz",
 		},
 	})
-	if err == nil || !strings.HasPrefix(err.Error(), "ccg: name not found") {
+	if err == nil || !strings.HasPrefix(err.Error(), "ccg: process error: name not found") {
 		t.Fail()
 	}
 }
