@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"path/filepath"
 	"strings"
 
 	"go/ast"
-	"go/build"
 	"go/parser"
 	"go/token"
 
@@ -75,14 +73,6 @@ func main() {
 				decls = astFile.Decls
 			}
 		}
-		if opts.Package == "" {
-			buildPkg, _ := build.Default.ImportDir(filepath.Dir(opts.Output), 0)
-			if buildPkg.Name != "" {
-				opts.Package = buildPkg.Name
-			} else {
-				opts.Package = "main"
-			}
-		}
 	}
 
 	var usesNames []string
@@ -93,14 +83,15 @@ func main() {
 	}
 
 	err = ccg.Copy(ccg.Config{
-		From:    opts.From,
-		Params:  params,
-		Renames: renames,
-		Writer:  buf,
-		Package: opts.Package,
-		Decls:   decls,
-		FileSet: fileSet,
-		Uses:    usesNames,
+		From:       opts.From,
+		Params:     params,
+		Renames:    renames,
+		Writer:     buf,
+		Package:    opts.Package,
+		Decls:      decls,
+		FileSet:    fileSet,
+		Uses:       usesNames,
+		OutputFile: opts.Output,
 	})
 	if err != nil {
 		log.Fatalf("ccg: copy error %v", err)
