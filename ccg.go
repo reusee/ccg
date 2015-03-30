@@ -95,7 +95,8 @@ func Copy(config Config) error {
 
 	// collect existing decls
 	existingDecls := make(map[string]func(interface{}))
-	var decls []ast.Decl
+	decls := []ast.Decl{}
+	used := NewObjectSet()
 	for i, decl := range config.Decls {
 		decls = append(decls, decl)
 		switch decl := decl.(type) {
@@ -110,6 +111,7 @@ func Copy(config Config) error {
 						existingDecls[name.Name] = func(expr interface{}) {
 							spec.Values[i] = expr.(ast.Expr)
 						}
+						used.Add(info.ObjectOf(name))
 					}
 				}
 			case token.TYPE:
@@ -120,6 +122,7 @@ func Copy(config Config) error {
 					existingDecls[spec.Name.Name] = func(expr interface{}) {
 						decl.Specs[i].(*ast.TypeSpec).Type = expr.(ast.Expr)
 					}
+					used.Add(info.ObjectOf(spec.Name))
 				}
 			case token.IMPORT:
 				for i, spec := range decl.Specs {
@@ -144,13 +147,15 @@ func Copy(config Config) error {
 			}
 			i := i
 			existingDecls[name] = func(fndecl interface{}) {
-				decls[i] = fndecl.(*ast.FuncDecl)
+				decl := fndecl.(*ast.FuncDecl)
+				decls[i] = decl
+				used.Add(info.ObjectOf(decl.Name))
 			}
+			used.Add(info.ObjectOf(decl.Name))
 		}
 	}
 
 	// collect output declarations
-	var newDecls []ast.Decl
 	for _, f := range info.Files {
 		for _, decl := range f.Decls {
 			switch decl := decl.(type) {
@@ -171,7 +176,7 @@ func Copy(config Config) error {
 						}
 					}
 					if len(newDecl.Specs) > 0 {
-						newDecls = append(newDecls, newDecl)
+						decls = append(decls, newDecl)
 					}
 				case token.TYPE:
 					newDecl := &ast.GenDecl{
@@ -187,7 +192,7 @@ func Copy(config Config) error {
 						}
 					}
 					if len(newDecl.Specs) > 0 {
-						newDecls = append(newDecls, newDecl)
+						decls = append(decls, newDecl)
 					}
 				case token.IMPORT:
 					newDecl := &ast.GenDecl{
@@ -208,7 +213,7 @@ func Copy(config Config) error {
 						}
 					}
 					if len(newDecl.Specs) > 0 {
-						newDecls = append(newDecls, newDecl)
+						decls = append(decls, newDecl)
 					}
 				}
 			case *ast.FuncDecl:
@@ -219,7 +224,7 @@ func Copy(config Config) error {
 				if mutator, ok := existingDecls[name]; ok {
 					mutator(decl)
 				} else {
-					newDecls = append(newDecls, decl)
+					decls = append(decls, decl)
 				}
 			}
 		}
@@ -227,31 +232,26 @@ func Copy(config Config) error {
 
 	// get function dependencies
 	deps := make(map[types.Object]ObjectSet)
-	collectDeps := func(decls []ast.Decl) {
-		for _, decl := range decls {
-			switch decl := decl.(type) {
-			case *ast.FuncDecl:
-				obj := info.ObjectOf(decl.Name)
-				set := NewObjectSet()
-				var visitor astVisitor
-				visitor = func(node ast.Node) astVisitor {
-					switch node := node.(type) {
-					case *ast.Ident:
-						dep := info.ObjectOf(node)
-						set.Add(dep)
-					}
-					return visitor
+	for _, decl := range decls {
+		switch decl := decl.(type) {
+		case *ast.FuncDecl:
+			obj := info.ObjectOf(decl.Name)
+			set := NewObjectSet()
+			var visitor astVisitor
+			visitor = func(node ast.Node) astVisitor {
+				switch node := node.(type) {
+				case *ast.Ident:
+					dep := info.ObjectOf(node)
+					set.Add(dep)
 				}
-				ast.Walk(visitor, decl)
-				deps[obj] = set
+				return visitor
 			}
+			ast.Walk(visitor, decl)
+			deps[obj] = set
 		}
 	}
-	collectDeps(newDecls)
-	collectDeps(decls)
 
-	// get uses objects
-	uses := NewObjectSet()
+	// get objects being used
 	for _, use := range config.Uses {
 		parts := strings.Split(use, ".")
 		switch len(parts) {
@@ -267,7 +267,7 @@ func Copy(config Config) error {
 				return fmt.Errorf("%s is not a type", parts[0])
 			}
 			obj, _, _ := types.LookupFieldOrMethod(typeName.Type(), true, info.Pkg, parts[1])
-			uses.Add(obj)
+			used.Add(obj)
 		case 1: // non-method
 			var obj types.Object
 			if from, ok := renamed[parts[0]]; ok { // renamed function
@@ -275,47 +275,44 @@ func Copy(config Config) error {
 			} else {
 				obj = info.Pkg.Scope().Lookup(parts[0])
 			}
-			uses.Add(obj)
+			used.Add(obj)
 		default:
 			return fmt.Errorf("invalid use spec: %s", use)
 		}
 	}
 
-	// filter by uses
-	if len(uses) > 0 {
+	// filter
+	if len(config.Uses) > 0 {
 		// calculate uses closure
 		for {
-			l := len(uses)
-			for use := range uses {
+			l := len(used)
+			for use := range used {
 				if deps, ok := deps[use]; ok {
 					for dep := range deps {
-						uses.Add(dep)
+						used.Add(dep)
 					}
 				}
 			}
-			if len(uses) == l {
+			if len(used) == l {
 				break
 			}
 		}
 		// filter
-		newDecls = filterDecls(newDecls, func(node interface{}) bool {
+		decls = filterDecls(decls, func(node interface{}) bool {
 			switch node := node.(type) {
 			case *ast.FuncDecl:
-				return uses.In(info.ObjectOf(node.Name))
+				return used.In(info.ObjectOf(node.Name))
 			case *ast.TypeSpec:
-				return uses.In(info.ObjectOf(node.Name))
+				return used.In(info.ObjectOf(node.Name))
 			case valueInfo:
-				return uses.In(info.ObjectOf(node.Name))
+				return used.In(info.ObjectOf(node.Name))
 			}
 			return true
 		})
 	}
 
-	// merge new and existing decls
-	decls = append(decls, newDecls...)
-
 	// decls tidy ups
-	newDecls = newDecls[0:0]
+	newDecls := []ast.Decl{}
 	var importDecls []ast.Decl
 	for _, decl := range decls {
 		// ensure linebreak between decls
@@ -329,7 +326,7 @@ func Copy(config Config) error {
 				decl.Doc = new(ast.CommentGroup)
 			}
 		}
-		// move import decls to beginning
+		// move import decls to the beginning
 		if decl, ok := decl.(*ast.GenDecl); ok && decl.Tok == token.IMPORT {
 			importDecls = append(importDecls, decl)
 			continue
