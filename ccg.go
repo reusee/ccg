@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/reusee/catch"
+
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/imports"
@@ -24,13 +26,9 @@ import (
 var (
 	pt = fmt.Printf
 	sp = fmt.Sprintf
+	ce = catch.Check
+	ct = catch.Catch
 )
-
-func checkErr(msg string, err error) {
-	if err != nil {
-		panic(fmt.Errorf("%s error: %v", msg, err))
-	}
-}
 
 type Config struct {
 	// generation options
@@ -48,11 +46,7 @@ type Config struct {
 }
 
 func Copy(config Config) (ret error) {
-	defer func() {
-		if p := recover(); p != nil {
-			ret = p.(error)
-		}
-	}()
+	defer ct(&ret)
 
 	// load package
 	loadConf := loader.Config{
@@ -60,7 +54,7 @@ func Copy(config Config) (ret error) {
 	}
 	loadConf.Import(config.From)
 	program, err := loadConf.Load()
-	checkErr("ccg: load package", err)
+	ce("ccg: load package", err)
 	info := program.Imported[config.From]
 
 	// remove param declarations
@@ -94,9 +88,9 @@ func Copy(config Config) (ret error) {
 		return nil
 	}
 	err = collectObjects(config.Params)
-	checkErr("ccg: process", err)
+	ce("ccg: process", err)
 	err = collectObjects(config.Renames)
-	checkErr("ccg: process", err)
+	ce("ccg: process", err)
 
 	// rename
 	rename := func(defs map[*ast.Ident]types.Object) {
@@ -374,11 +368,11 @@ func Copy(config Config) (ret error) {
 	}
 	buf := new(bytes.Buffer)
 	err = format.Node(buf, program.Fset, src)
-	checkErr("ccg: format", err)
+	ce("ccg: format", err)
 	var bs []byte
 	if config.Package != "" {
 		bs, err = imports.Process("", buf.Bytes(), nil)
-		checkErr("ccg: imports", err)
+		ce("ccg: imports", err)
 	} else {
 		bs = buf.Bytes()
 	}
