@@ -58,6 +58,7 @@ func main() {
 			[]string{"T"},
 			[]string{"Ts"},
 		},
+		"initseed": {"", []string{}, []string{}},
 	}
 
 	spec, ok := specs[args[0]]
