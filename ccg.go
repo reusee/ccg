@@ -26,13 +26,8 @@ import (
 var (
 	pt = fmt.Printf
 	sp = fmt.Sprintf
-	ce = catch.Check
+	ce = catch.PkgChecker("ccg")
 	ct = catch.Catch
-	ew = func(info string) func(error) error {
-		return func(err error) error {
-			return fmt.Errorf("ccg: %s error - %v", info, err)
-		}
-	}
 )
 
 type Config struct {
@@ -59,7 +54,7 @@ func Copy(config Config) (ret error) {
 	}
 	loadConf.Import(config.From)
 	program, err := loadConf.Load()
-	ce(err, ew("load package"))
+	ce(err, "load package")
 	info := program.Imported[config.From]
 
 	// remove param declarations
@@ -93,9 +88,9 @@ func Copy(config Config) (ret error) {
 		return nil
 	}
 	err = collectObjects(config.Params)
-	ce(err, ew("process"))
+	ce(err, "process")
 	err = collectObjects(config.Renames)
-	ce(err, ew("process"))
+	ce(err, "process")
 
 	// rename
 	rename := func(defs map[*ast.Ident]types.Object) {
@@ -373,11 +368,11 @@ func Copy(config Config) (ret error) {
 	}
 	buf := new(bytes.Buffer)
 	err = format.Node(buf, program.Fset, src)
-	ce(err, ew("format"))
+	ce(err, "format")
 	var bs []byte
 	if config.Package != "" {
 		bs, err = imports.Process("", buf.Bytes(), nil)
-		ce(err, ew("imports"))
+		ce(err, "imports")
 	} else {
 		bs = buf.Bytes()
 	}
