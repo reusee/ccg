@@ -258,3 +258,28 @@ func TestInvalidUsesType(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestInitFunction(t *testing.T) {
+	f, err := parser.ParseFile(new(token.FileSet), "foo", `
+package foo
+func init() {
+	_ = 42
+}
+	`, 0)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	buf := new(bytes.Buffer)
+	err = Copy(Config{
+		From:    "github.com/reusee/ccg/testdata/init",
+		Writer:  buf,
+		Uses:    []string{},
+		Package: "foo",
+		Decls:   f.Decls,
+	})
+	if err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	expected := readExpected("init/_expected.go")
+	checkResult(expected, buf.Bytes(), t)
+}

@@ -152,6 +152,9 @@ func Copy(config Config) (ret error) {
 			}
 		case *ast.FuncDecl:
 			name := decl.Name.Name
+			if name == "init" {
+				continue
+			}
 			if decl.Recv != nil {
 				name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
 			}
