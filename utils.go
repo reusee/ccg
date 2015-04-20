@@ -6,6 +6,8 @@ import (
 	"golang.org/x/tools/go/types"
 )
 
+import "fmt"
+
 type AstDecls []ast.Decl
 
 func (s AstDecls) Filter(filter func(ast.Decl) bool) (ret AstDecls) {
@@ -41,4 +43,22 @@ func (s ObjectSet) Add(t types.Object) {
 func (s ObjectSet) In(t types.Object) (ok bool) {
 	_, ok = s[t]
 	return
+}
+
+type Err struct {
+	Pkg  string
+	Info string
+	Err  error
+}
+
+func (e Err) Error() string {
+	return fmt.Sprintf("%s: %s\n%v", e.Pkg, e.Info, e.Err)
+}
+
+func makeErr(err error, info string) *Err {
+	return &Err{
+		Pkg:  "ccg",
+		Info: info,
+		Err:  err,
+	}
 }

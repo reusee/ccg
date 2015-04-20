@@ -3,6 +3,7 @@ package ccg
 //go:generate myccg -u AstDecls.Filter -o utils.go slice ast.Decl AstDecls
 //go:generate myccg -u AstSpecs.Filter -o utils.go slice ast.Spec AstSpecs
 //go:generate myccg -u ObjectSet.Add,ObjectSet.In,NewObjectSet -o utils.go set types.Object ObjectSet NewObjectSet
+//go:generate myccg err ccg -o utils.go
 
 import (
 	"bytes"
@@ -54,7 +55,9 @@ func Copy(config Config) (ret error) {
 	}
 	loadConf.Import(config.From)
 	program, err := loadConf.Load()
-	ce(err, "load package")
+	if err != nil {
+		return makeErr(err, "load package")
+	}
 	info := program.Imported[config.From]
 
 	// remove param declarations
@@ -87,10 +90,12 @@ func Copy(config Config) (ret error) {
 		}
 		return nil
 	}
-	err = collectObjects(config.Params)
-	ce(err, "process")
-	err = collectObjects(config.Renames)
-	ce(err, "process")
+	if err := collectObjects(config.Params); err != nil {
+		return makeErr(err, "process")
+	}
+	if err := collectObjects(config.Renames); err != nil {
+		return makeErr(err, "process")
+	}
 
 	// rename
 	rename := func(defs map[*ast.Ident]types.Object) {
@@ -354,7 +359,9 @@ func Copy(config Config) (ret error) {
 	}
 	if config.OutputFile != "" && config.Package == "" { // detect package name
 		buildPkg, err := build.Default.ImportDir(filepath.Dir(config.OutputFile), 0)
-		ce(err, "detect package")
+		if err != nil {
+			return makeErr(err, "detect package")
+		}
 		config.Package = buildPkg.Name
 	}
 	var src interface{}
@@ -367,12 +374,15 @@ func Copy(config Config) (ret error) {
 		src = decls
 	}
 	buf := new(bytes.Buffer)
-	err = format.Node(buf, program.Fset, src)
-	ce(err, "format")
+	if err := format.Node(buf, program.Fset, src); err != nil {
+		return makeErr(err, "format")
+	}
 	var bs []byte
 	if config.Package != "" {
 		bs, err = imports.Process("", buf.Bytes(), nil)
-		ce(err, "imports")
+		if err != nil {
+			return makeErr(err, "imports")
+		}
 	} else {
 		bs = buf.Bytes()
 	}
