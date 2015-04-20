@@ -57,7 +57,7 @@ func (e *Err) Error() string {
 
 func makeErr(err error, info string) *Err {
 	return &Err{
-		Pkg:  "ccg",
+		Pkg:  `ccg`,
 		Info: info,
 		Err:  err,
 	}

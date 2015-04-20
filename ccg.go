@@ -85,6 +85,9 @@ func Copy(config Config) (ret error) {
 			if obj == nil {
 				return fmt.Errorf("name not found %s", from)
 			}
+			if t, ok := obj.Type().(*types.Basic); ok && t.Kind() == types.String {
+				to = "`" + to + "`"
+			}
 			objects[obj] = to
 			renamed[to] = from
 		}
