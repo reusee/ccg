@@ -59,6 +59,11 @@ func main() {
 			[]string{"Ts"},
 		},
 		"initseed": {"", []string{}, []string{}},
+		"err": {
+			"[package name]",
+			[]string{"Pkg"},
+			[]string{},
+		},
 	}
 
 	spec, ok := specs[args[0]]
