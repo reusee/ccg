@@ -349,16 +349,13 @@ func Copy(config Config) (ret error) {
 	decls = append(importDecls, newDecls...)
 
 	// output
-	if config.Writer == nil {
+	if config.Writer == nil { //NOCOVER
 		config.Writer = os.Stdout
 	}
 	if config.OutputFile != "" && config.Package == "" { // detect package name
-		buildPkg, _ := build.Default.ImportDir(filepath.Dir(config.OutputFile), 0)
-		if buildPkg.Name != "" {
-			config.Package = buildPkg.Name
-		} else {
-			config.Package = "main"
-		}
+		buildPkg, err := build.Default.ImportDir(filepath.Dir(config.OutputFile), 0)
+		ce(err, "detect package")
+		config.Package = buildPkg.Name
 	}
 	var src interface{}
 	if config.Package != "" {

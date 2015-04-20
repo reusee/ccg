@@ -273,7 +273,6 @@ func init() {
 	err = Copy(Config{
 		From:    "github.com/reusee/ccg/testdata/init",
 		Writer:  buf,
-		Uses:    []string{},
 		Package: "foo",
 		Decls:   f.Decls,
 	})
@@ -282,4 +281,19 @@ func init() {
 	}
 	expected := readExpected("init/_expected.go")
 	checkResult(expected, buf.Bytes(), t)
+}
+
+func TestPkgNameDetect(t *testing.T) {
+	buf := new(bytes.Buffer)
+	err := Copy(Config{
+		From:       "github.com/reusee/ccg/testdata/pkg",
+		Writer:     buf,
+		OutputFile: filepath.Join(os.Getenv("GOPATH"), "src", "github.com", "reusee", "ccg", "testdata", "pkg", "gen.go"),
+	})
+	if err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	if string(buf.Bytes()) != "package foobarpkg\n" {
+		t.Fatalf("copy: wrong package detected")
+	}
 }
