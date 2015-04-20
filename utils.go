@@ -51,7 +51,7 @@ type Err struct {
 	Err  error
 }
 
-func (e Err) Error() string {
+func (e *Err) Error() string {
 	return fmt.Sprintf("%s: %s\n%v", e.Pkg, e.Info, e.Err)
 }
 

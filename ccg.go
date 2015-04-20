@@ -156,12 +156,9 @@ func Copy(config Config) (ret error) {
 				}
 			}
 		case *ast.FuncDecl:
-			name := decl.Name.Name
+			name := getFuncDeclName(decl)
 			if name == "init" {
 				continue
-			}
-			if decl.Recv != nil {
-				name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
 			}
 			i := i
 			existingDecls[name] = func(fndecl interface{}) {
@@ -235,10 +232,7 @@ func Copy(config Config) (ret error) {
 					}
 				}
 			case *ast.FuncDecl:
-				name := decl.Name.Name
-				if decl.Recv != nil {
-					name = decl.Recv.List[0].Type.(*ast.Ident).Name + "." + name
-				}
+				name := getFuncDeclName(decl)
 				if mutator, ok := existingDecls[name]; ok {
 					mutator(decl)
 				} else {
@@ -374,13 +368,13 @@ func Copy(config Config) (ret error) {
 		src = decls
 	}
 	buf := new(bytes.Buffer)
-	if err := format.Node(buf, program.Fset, src); err != nil {
+	if err := format.Node(buf, program.Fset, src); err != nil { //NOCOVER
 		return makeErr(err, "format")
 	}
 	var bs []byte
 	if config.Package != "" {
 		bs, err = imports.Process("", buf.Bytes(), nil)
-		if err != nil {
+		if err != nil { //NOCOVER
 			return makeErr(err, "imports")
 		}
 	} else {
@@ -446,4 +440,21 @@ func filterDecls(decls []ast.Decl, fn func(interface{}) bool) []ast.Decl {
 		return
 	})
 	return decls
+}
+
+func getFuncDeclName(decl *ast.FuncDecl) (name string) {
+	name = decl.Name.Name
+	if decl.Recv != nil {
+		expr := decl.Recv.List[0].Type
+		for _, ok := expr.(*ast.Ident); !ok; _, ok = expr.(*ast.Ident) {
+			switch e := expr.(type) {
+			case *ast.StarExpr:
+				expr = e.X
+			default:
+				panic(sp("unknown receiver node type %T", expr))
+			}
+		}
+		name = expr.(*ast.Ident).Name + "." + name
+	}
+	return
 }
