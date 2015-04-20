@@ -453,7 +453,7 @@ func getFuncDeclName(decl *ast.FuncDecl) (name string) {
 			switch e := expr.(type) {
 			case *ast.StarExpr:
 				expr = e.X
-			default:
+			default: //NOCOVER
 				panic(sp("unknown receiver node type %T", expr))
 			}
 		}

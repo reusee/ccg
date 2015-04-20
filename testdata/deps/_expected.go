@@ -10,6 +10,6 @@ func (t T) Bar() {
 	t.Foo()
 }
 
-func (t T) Baz() {}
+func (t *T) Baz() {}
 
 type B int

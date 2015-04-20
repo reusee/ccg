@@ -114,6 +114,7 @@ func TestVar(t *testing.T) {
 		From: "github.com/reusee/ccg/testdata/var",
 		Params: map[string]string{
 			"N": "42",
+			"M": "foobar",
 		},
 		Writer:  buf,
 		Package: "foo",
@@ -295,5 +296,18 @@ func TestPkgNameDetect(t *testing.T) {
 	}
 	if string(buf.Bytes()) != "package foobarpkg\n" {
 		t.Fatalf("copy: wrong package detected")
+	}
+}
+
+func TestPkgNameDetectFail(t *testing.T) {
+	err := Copy(Config{
+		From:       "github.com/reusee/ccg/testdata/pkg",
+		OutputFile: filepath.Join("non-exists-path", "non-exists.go"),
+	})
+	if err == nil {
+		t.Fatal("should fail")
+	}
+	if !strings.HasPrefix(err.Error(), "ccg: detect package") {
+		t.Fatalf("incorrect error, got %v", err)
 	}
 }

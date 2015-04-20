@@ -10,4 +10,4 @@ func (t T) Foo() {
 	t.Baz()
 }
 
-func (t T) Baz() {}
+func (t *T) Baz() {}
