@@ -3,6 +3,7 @@ package ccg
 //go:generate myccg -u AstDecls.Filter -o utils.go slice ast.Decl AstDecls
 //go:generate myccg -u AstSpecs.Filter -o utils.go slice ast.Spec AstSpecs
 //go:generate myccg -u ObjectSet.Add,ObjectSet.In,NewObjectSet -o utils.go set types.Object ObjectSet NewObjectSet
+//go:generate myccg -u StrSet.Add,StrSet.In,NewStrSet -o utils.go set string StrSet NewStrSet
 //go:generate myccg err ccg -o utils.go
 
 import (
@@ -18,8 +19,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/reusee/catch"
-
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/imports"
@@ -28,8 +27,6 @@ import (
 var (
 	pt = fmt.Printf
 	sp = fmt.Sprintf
-	ce = catch.PkgChecker("ccg")
-	ct = catch.Catch
 )
 
 type Config struct {
@@ -48,8 +45,6 @@ type Config struct {
 }
 
 func Copy(config Config) (ret error) {
-	defer ct(&ret)
-
 	// load package
 	loadConf := loader.Config{
 		Fset:       config.FileSet,
@@ -61,6 +56,16 @@ func Copy(config Config) (ret error) {
 		return makeErr(err, "load package")
 	}
 	info := program.Imported[config.From]
+
+	// utils functions
+	formatNode := func(node interface{}) (string, error) {
+		buf := new(bytes.Buffer)
+		err := format.Node(buf, loadConf.Fset, node)
+		if err != nil {
+			return "", makeErr(err, "format node")
+		}
+		return string(buf.Bytes()), nil
+	}
 
 	// remove param declarations
 	for _, f := range info.Files {
@@ -117,6 +122,7 @@ func Copy(config Config) (ret error) {
 	existingDecls := make(map[string]func(interface{}))
 	decls := []ast.Decl{}
 	used := NewObjectSet()
+	initFuncs := NewStrSet()
 	for i, decl := range config.Decls {
 		decls = append(decls, decl)
 		switch decl := decl.(type) {
@@ -163,6 +169,11 @@ func Copy(config Config) (ret error) {
 		case *ast.FuncDecl:
 			name := getFuncDeclName(decl)
 			if name == "init" {
+				src, err := formatNode(decl)
+				if err != nil {
+					return makeErr(err, "format init func")
+				}
+				initFuncs.Add(src)
 				continue
 			}
 			i := i
@@ -238,6 +249,16 @@ func Copy(config Config) (ret error) {
 				}
 			case *ast.FuncDecl:
 				name := getFuncDeclName(decl)
+				if name == "init" {
+					src, err := formatNode(decl)
+					if err != nil {
+						return makeErr(err, "format init func")
+					}
+					if !initFuncs.In(src) { // not duplicated
+						decls = append(decls, decl)
+					}
+					continue
+				}
 				if mutator, ok := existingDecls[name]; ok {
 					mutator(decl)
 				} else {

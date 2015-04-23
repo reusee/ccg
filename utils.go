@@ -62,3 +62,18 @@ func makeErr(err error, info string) *Err {
 		Err:  err,
 	}
 }
+
+type StrSet map[string]struct{}
+
+func NewStrSet() StrSet {
+	return StrSet(make(map[string]struct{}))
+}
+
+func (s StrSet) Add(t string) {
+	s[t] = struct{}{}
+}
+
+func (s StrSet) In(t string) (ok bool) {
+	_, ok = s[t]
+	return
+}

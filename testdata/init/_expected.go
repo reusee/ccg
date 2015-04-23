@@ -5,5 +5,5 @@ func init() {
 }
 
 func init() {
-	_ = "42"
+	_ = "foobar"
 }
