@@ -89,7 +89,7 @@ func main() {
 	if opts.Output != "" {
 		content, err := ioutil.ReadFile(opts.Output)
 		if err == nil {
-			astFile, err := parser.ParseFile(fileSet, opts.Output, content, 0)
+			astFile, err := parser.ParseFile(fileSet, opts.Output, content, parser.ParseComments)
 			if err == nil {
 				decls = astFile.Decls
 			}

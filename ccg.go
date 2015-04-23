@@ -11,6 +11,7 @@ import (
 	"go/ast"
 	"go/build"
 	"go/format"
+	"go/parser"
 	"go/token"
 	"io"
 	"os"
@@ -51,7 +52,8 @@ func Copy(config Config) (ret error) {
 
 	// load package
 	loadConf := loader.Config{
-		Fset: config.FileSet,
+		Fset:       config.FileSet,
+		ParserMode: parser.ParseComments,
 	}
 	loadConf.Import(config.From)
 	program, err := loadConf.Load()
