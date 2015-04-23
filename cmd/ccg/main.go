@@ -62,15 +62,14 @@ func main() {
 		}
 	}
 
-	buf := new(bytes.Buffer)
-	var decls []ast.Decl
+	existing := []*ast.File{}
 	fileSet := new(token.FileSet)
 	if opts.Output != "" {
 		content, err := ioutil.ReadFile(opts.Output)
 		if err == nil {
 			astFile, err := parser.ParseFile(fileSet, opts.Output, content, 0)
 			if err == nil {
-				decls = astFile.Decls
+				existing = append(existing, astFile)
 			}
 		}
 	}
@@ -82,13 +81,14 @@ func main() {
 		}
 	}
 
+	buf := new(bytes.Buffer)
 	err = ccg.Copy(ccg.Config{
 		From:       opts.From,
 		Params:     params,
 		Renames:    renames,
 		Writer:     buf,
 		Package:    opts.Package,
-		Decls:      decls,
+		Existing:   existing,
 		FileSet:    fileSet,
 		Uses:       usesNames,
 		OutputFile: opts.Output,

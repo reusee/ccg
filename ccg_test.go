@@ -3,6 +3,7 @@ package ccg
 import (
 	"bytes"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
@@ -87,10 +88,10 @@ const c = 5
 	}
 	buf := new(bytes.Buffer)
 	err = Copy(Config{
-		From:    "github.com/reusee/ccg/testdata/override",
-		Writer:  buf,
-		Decls:   f.Decls,
-		Package: "foo",
+		From:     "github.com/reusee/ccg/testdata/override",
+		Writer:   buf,
+		Existing: []*ast.File{f},
+		Package:  "foo",
 	})
 	if err != nil {
 		t.Fatalf("copy: %v", err)
@@ -176,11 +177,11 @@ func (b B) Foo() {}
 	}
 	buf := new(bytes.Buffer)
 	err = Copy(Config{
-		From:    "github.com/reusee/ccg/testdata/deps",
-		Writer:  buf,
-		Uses:    []string{"T.Foo"},
-		Package: "foo",
-		Decls:   f.Decls,
+		From:     "github.com/reusee/ccg/testdata/deps",
+		Writer:   buf,
+		Uses:     []string{"T.Foo"},
+		Package:  "foo",
+		Existing: []*ast.File{f},
 	})
 	if err != nil {
 		t.Fatalf("copy: %v", err)
@@ -272,10 +273,10 @@ func init() {
 	}
 	buf := new(bytes.Buffer)
 	err = Copy(Config{
-		From:    "github.com/reusee/ccg/testdata/init",
-		Writer:  buf,
-		Package: "foo",
-		Decls:   f.Decls,
+		From:     "github.com/reusee/ccg/testdata/init",
+		Writer:   buf,
+		Package:  "foo",
+		Existing: []*ast.File{f},
 	})
 	if err != nil {
 		t.Fatalf("copy: %v", err)
@@ -296,10 +297,10 @@ func init() {
 	}
 	buf := new(bytes.Buffer)
 	err = Copy(Config{
-		From:    "github.com/reusee/ccg/testdata/init",
-		Writer:  buf,
-		Package: "foo",
-		Decls:   f.Decls,
+		From:     "github.com/reusee/ccg/testdata/init",
+		Writer:   buf,
+		Package:  "foo",
+		Existing: []*ast.File{f},
 	})
 	if err != nil {
 		t.Fatalf("copy: %v", err)

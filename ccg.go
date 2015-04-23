@@ -31,12 +31,12 @@ var (
 
 type Config struct {
 	// generation options
-	From    string
-	Params  map[string]string
-	Renames map[string]string
-	Decls   []ast.Decl
-	FileSet *token.FileSet
-	Uses    []string
+	From     string
+	Params   map[string]string
+	Renames  map[string]string
+	Existing []*ast.File
+	FileSet  *token.FileSet
+	Uses     []string
 
 	// output options
 	Writer     io.Writer
@@ -123,66 +123,74 @@ func Copy(config Config) (ret error) {
 	decls := []ast.Decl{}
 	used := NewObjectSet()
 	initFuncs := NewStrSet()
-	for i, decl := range config.Decls {
-		decls = append(decls, decl)
-		switch decl := decl.(type) {
-		case *ast.GenDecl:
-			switch decl.Tok {
-			case token.VAR, token.CONST:
-				for _, spec := range decl.Specs {
-					spec := spec.(*ast.ValueSpec)
-					for i, name := range spec.Names {
-						i := i
-						spec := spec
-						existingDecls[name.Name] = func(expr interface{}) {
-							spec.Values[i] = expr.(ast.Expr)
+	collectExisting := func(f *ast.File) error {
+		for i, decl := range f.Decls {
+			decls = append(decls, decl)
+			switch decl := decl.(type) {
+			case *ast.GenDecl:
+				switch decl.Tok {
+				case token.VAR, token.CONST:
+					for _, spec := range decl.Specs {
+						spec := spec.(*ast.ValueSpec)
+						for i, name := range spec.Names {
+							i := i
+							spec := spec
+							existingDecls[name.Name] = func(expr interface{}) {
+								spec.Values[i] = expr.(ast.Expr)
+							}
+							used.Add(info.ObjectOf(name))
 						}
-						used.Add(info.ObjectOf(name))
+					}
+				case token.TYPE:
+					for i, spec := range decl.Specs {
+						spec := spec.(*ast.TypeSpec)
+						i := i
+						decl := decl
+						existingDecls[spec.Name.Name] = func(expr interface{}) {
+							decl.Specs[i].(*ast.TypeSpec).Type = expr.(ast.Expr)
+						}
+						used.Add(info.ObjectOf(spec.Name))
+					}
+				case token.IMPORT:
+					for i, spec := range decl.Specs {
+						spec := spec.(*ast.ImportSpec)
+						i := i
+						decl := decl
+						var name string
+						if spec.Name == nil {
+							name = spec.Path.Value
+						} else {
+							name = spec.Name.Name
+						}
+						existingDecls[name] = func(path interface{}) {
+							decl.Specs[i].(*ast.ImportSpec).Path = path.(*ast.BasicLit)
+						}
 					}
 				}
-			case token.TYPE:
-				for i, spec := range decl.Specs {
-					spec := spec.(*ast.TypeSpec)
-					i := i
-					decl := decl
-					existingDecls[spec.Name.Name] = func(expr interface{}) {
-						decl.Specs[i].(*ast.TypeSpec).Type = expr.(ast.Expr)
+			case *ast.FuncDecl:
+				name := getFuncDeclName(decl)
+				if name == "init" {
+					src, err := formatNode(decl)
+					if err != nil {
+						return makeErr(err, "format init func")
 					}
-					used.Add(info.ObjectOf(spec.Name))
+					initFuncs.Add(src)
+					continue
 				}
-			case token.IMPORT:
-				for i, spec := range decl.Specs {
-					spec := spec.(*ast.ImportSpec)
-					i := i
-					decl := decl
-					var name string
-					if spec.Name == nil {
-						name = spec.Path.Value
-					} else {
-						name = spec.Name.Name
-					}
-					existingDecls[name] = func(path interface{}) {
-						decl.Specs[i].(*ast.ImportSpec).Path = path.(*ast.BasicLit)
-					}
+				i := i
+				existingDecls[name] = func(fndecl interface{}) {
+					decl := fndecl.(*ast.FuncDecl)
+					decls[i] = decl
+					used.Add(info.ObjectOf(decl.Name))
 				}
-			}
-		case *ast.FuncDecl:
-			name := getFuncDeclName(decl)
-			if name == "init" {
-				src, err := formatNode(decl)
-				if err != nil {
-					return makeErr(err, "format init func")
-				}
-				initFuncs.Add(src)
-				continue
-			}
-			i := i
-			existingDecls[name] = func(fndecl interface{}) {
-				decl := fndecl.(*ast.FuncDecl)
-				decls[i] = decl
 				used.Add(info.ObjectOf(decl.Name))
 			}
-			used.Add(info.ObjectOf(decl.Name))
+		}
+		return nil
+	}
+	for _, f := range config.Existing {
+		if err := collectExisting(f); err != nil {
+			return err
 		}
 	}
 
