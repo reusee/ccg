@@ -336,3 +336,30 @@ func TestPkgNameDetectFail(t *testing.T) {
 		t.Fatalf("incorrect error, got %v", err)
 	}
 }
+
+func TestComments(t *testing.T) {
+	t.Skip() //TODO
+	f, err := parser.ParseFile(new(token.FileSet), "foo", `
+package foo
+
+//Bar
+func bar() {
+	//Baz
+}
+	`, parser.ParseComments)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	buf := new(bytes.Buffer)
+	err = Copy(Config{
+		From:     "github.com/reusee/ccg/testdata/comments",
+		Writer:   buf,
+		Package:  "foo",
+		Existing: []*ast.File{f},
+	})
+	if err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	expected := readExpected("comments/_expected.go")
+	checkResult(expected, buf.Bytes(), t)
+}
