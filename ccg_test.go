@@ -338,9 +338,12 @@ func TestPkgNameDetectFail(t *testing.T) {
 }
 
 func TestComments(t *testing.T) {
-	t.Skip() //TODO
-	f, err := parser.ParseFile(new(token.FileSet), "foo", `
+	t.Skip() // TODO
+	fset := new(token.FileSet)
+	f, err := parser.ParseFile(fset, "foo", `
 package foo
+
+//Foo
 
 //Bar
 func bar() {
@@ -356,6 +359,7 @@ func bar() {
 		Writer:   buf,
 		Package:  "foo",
 		Existing: []*ast.File{f},
+		FileSet:  fset,
 	})
 	if err != nil {
 		t.Fatalf("copy: %v", err)

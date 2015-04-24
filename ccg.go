@@ -123,7 +123,12 @@ func Copy(config Config) (ret error) {
 	decls := []ast.Decl{}
 	used := NewObjectSet()
 	initFuncs := NewStrSet()
+	cmap := ast.CommentMap(make(map[ast.Node][]*ast.CommentGroup))
 	collectExisting := func(f *ast.File) error {
+		cm := ast.NewCommentMap(loadConf.Fset, f, f.Comments)
+		for key, value := range cm {
+			cmap[key] = value
+		}
 		for i, decl := range f.Decls {
 			decls = append(decls, decl)
 			switch decl := decl.(type) {
@@ -196,6 +201,10 @@ func Copy(config Config) (ret error) {
 
 	// collect output declarations
 	for _, f := range info.Files {
+		cm := ast.NewCommentMap(loadConf.Fset, f, f.Comments)
+		for key, value := range cm {
+			cmap[key] = value
+		}
 		for _, decl := range f.Decls {
 			switch decl := decl.(type) {
 			case *ast.GenDecl:
@@ -394,10 +403,12 @@ func Copy(config Config) (ret error) {
 	}
 	var src interface{}
 	if config.Package != "" {
-		src = &ast.File{
+		f := &ast.File{
 			Name:  ast.NewIdent(config.Package),
 			Decls: decls,
 		}
+		f.Comments = cmap.Filter(f).Comments()
+		src = f
 	} else {
 		src = decls
 	}
