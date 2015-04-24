@@ -84,14 +84,14 @@ func main() {
 	}
 
 	buf := new(bytes.Buffer)
-	var decls []ast.Decl
+	var f *ast.File
 	fileSet := new(token.FileSet)
 	if opts.Output != "" {
 		content, err := ioutil.ReadFile(opts.Output)
 		if err == nil {
 			astFile, err := parser.ParseFile(fileSet, opts.Output, content, parser.ParseComments)
 			if err == nil {
-				decls = astFile.Decls
+				f = astFile
 			}
 		}
 	}
@@ -109,7 +109,7 @@ func main() {
 		Renames:    renames,
 		Writer:     buf,
 		Package:    opts.Package,
-		Decls:      decls,
+		Existing:   []*ast.File{f},
 		FileSet:    fileSet,
 		Uses:       usesNames,
 		OutputFile: opts.Output,
