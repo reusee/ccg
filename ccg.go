@@ -61,7 +61,7 @@ func Copy(config Config) (ret error) {
 	formatNode := func(node interface{}) (string, error) {
 		buf := new(bytes.Buffer)
 		err := format.Node(buf, loadConf.Fset, node)
-		if err != nil {
+		if err != nil { //NOCOVER
 			return "", makeErr(err, "format node")
 		}
 		return string(buf.Bytes()), nil
@@ -176,7 +176,7 @@ func Copy(config Config) (ret error) {
 				name := getFuncDeclName(decl)
 				if name == "init" {
 					src, err := formatNode(decl)
-					if err != nil {
+					if err != nil { //NOCOVER
 						return makeErr(err, "format init func")
 					}
 					initFuncs.Add(src)
@@ -194,7 +194,7 @@ func Copy(config Config) (ret error) {
 		return nil
 	}
 	for _, f := range config.Existing {
-		if err := collectExisting(f); err != nil {
+		if err := collectExisting(f); err != nil { //NOCOVER
 			return err
 		}
 	}
@@ -268,7 +268,7 @@ func Copy(config Config) (ret error) {
 				name := getFuncDeclName(decl)
 				if name == "init" {
 					src, err := formatNode(decl)
-					if err != nil {
+					if err != nil { //NOCOVER
 						return makeErr(err, "format init func")
 					}
 					if !initFuncs.In(src) { // not duplicated
