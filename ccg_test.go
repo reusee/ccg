@@ -338,28 +338,11 @@ func TestPkgNameDetectFail(t *testing.T) {
 }
 
 func TestComments(t *testing.T) {
-	t.Skip() // TODO
-	fset := new(token.FileSet)
-	f, err := parser.ParseFile(fset, "foo", `
-package foo
-
-//Foo
-
-//Bar
-func bar() {
-	//Baz
-}
-	`, parser.ParseComments)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
 	buf := new(bytes.Buffer)
-	err = Copy(Config{
-		From:     "github.com/reusee/ccg/testdata/comments",
-		Writer:   buf,
-		Package:  "foo",
-		Existing: []*ast.File{f},
-		FileSet:  fset,
+	err := Copy(Config{
+		From:    "github.com/reusee/ccg/testdata/comments",
+		Writer:  buf,
+		Package: "foo",
 	})
 	if err != nil {
 		t.Fatalf("copy: %v", err)
