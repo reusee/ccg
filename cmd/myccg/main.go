@@ -95,6 +95,10 @@ func main() {
 			}
 		}
 	}
+	var existing []*ast.File
+	if f != nil {
+		existing = append(existing, f)
+	}
 
 	var usesNames []string
 	if len(opts.Uses) > 0 {
@@ -109,7 +113,7 @@ func main() {
 		Renames:    renames,
 		Writer:     buf,
 		Package:    opts.Package,
-		Existing:   []*ast.File{f},
+		Existing:   existing,
 		FileSet:    fileSet,
 		Uses:       usesNames,
 		OutputFile: opts.Output,
