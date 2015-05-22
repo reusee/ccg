@@ -123,12 +123,19 @@ func Copy(config Config) (ret error) {
 	decls := []ast.Decl{}
 	used := NewObjectSet()
 	initFuncs := NewStrSet()
-	cmap := ast.CommentMap(make(map[ast.Node][]*ast.CommentGroup))
-	collectExisting := func(f *ast.File) error {
-		cm := ast.NewCommentMap(loadConf.Fset, f, f.Comments)
-		for key, value := range cm {
-			cmap[key] = value
+	var cmap ast.CommentMap
+	mergeComments := func(f *ast.File) {
+		if cmap == nil {
+			cmap = ast.NewCommentMap(loadConf.Fset, f, f.Comments)
+		} else {
+			cm := ast.NewCommentMap(loadConf.Fset, f, f.Comments)
+			for key, value := range cm {
+				cmap[key] = value
+			}
 		}
+	}
+	collectExisting := func(f *ast.File) error {
+		mergeComments(f)
 		for i, decl := range f.Decls {
 			decls = append(decls, decl)
 			switch decl := decl.(type) {
@@ -201,10 +208,7 @@ func Copy(config Config) (ret error) {
 
 	// collect output declarations
 	for _, f := range info.Files {
-		cm := ast.NewCommentMap(loadConf.Fset, f, f.Comments)
-		for key, value := range cm {
-			cmap[key] = value
-		}
+		mergeComments(f)
 		for _, decl := range f.Decls {
 			switch decl := decl.(type) {
 			case *ast.GenDecl:
