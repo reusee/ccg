@@ -2,8 +2,7 @@ package ccg
 
 import (
 	"go/ast"
-
-	"golang.org/x/tools/go/types"
+	"go/types"
 )
 
 import "fmt"
@@ -48,19 +47,14 @@ func (s ObjectSet) In(t types.Object) (ok bool) {
 type Err struct {
 	Pkg  string
 	Info string
-	Err  error
+	Prev error
 }
 
 func (e *Err) Error() string {
-	return fmt.Sprintf("%s: %s\n%v", e.Pkg, e.Info, e.Err)
-}
-
-func makeErr(err error, info string) *Err {
-	return &Err{
-		Pkg:  `ccg`,
-		Info: info,
-		Err:  err,
+	if e.Prev == nil {
+		return fmt.Sprintf("%s: %s", e.Pkg, e.Info)
 	}
+	return fmt.Sprintf("%s: %s\n%v", e.Pkg, e.Info, e.Prev)
 }
 
 type StrSet map[string]struct{}
@@ -76,4 +70,35 @@ func (s StrSet) Add(t string) {
 func (s StrSet) In(t string) (ok bool) {
 	_, ok = s[t]
 	return
+}
+
+func me(err error, format string, args ...interface{}) *Err {
+	if len(args) > 0 {
+		return &Err{
+			Pkg:  `ccg`,
+			Info: fmt.Sprintf(format, args...),
+			Prev: err,
+		}
+	}
+	return &Err{
+		Pkg:  `ccg`,
+		Info: format,
+		Prev: err,
+	}
+}
+
+func ce(err error, format string, args ...interface{}) {
+	if err != nil {
+		panic(me(err, format, args...))
+	}
+}
+
+func ct(err *error) {
+	if p := recover(); p != nil {
+		if e, ok := p.(error); ok {
+			*err = e
+		} else {
+			panic(p)
+		}
+	}
 }

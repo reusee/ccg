@@ -14,13 +14,13 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/imports"
 )
 
@@ -53,7 +53,7 @@ func Copy(config Config) (ret error) {
 	loadConf.Import(config.From)
 	program, err := loadConf.Load()
 	if err != nil {
-		return makeErr(err, "load package")
+		return me(err, "load package")
 	}
 	info := program.Imported[config.From]
 
@@ -62,7 +62,7 @@ func Copy(config Config) (ret error) {
 		buf := new(bytes.Buffer)
 		err := format.Node(buf, loadConf.Fset, node)
 		if err != nil { //NOCOVER
-			return "", makeErr(err, "format node")
+			return "", me(err, "format node")
 		}
 		return string(buf.Bytes()), nil
 	}
@@ -101,10 +101,10 @@ func Copy(config Config) (ret error) {
 		return nil
 	}
 	if err := collectObjects(config.Params); err != nil {
-		return makeErr(err, "process")
+		return me(err, "process")
 	}
 	if err := collectObjects(config.Renames); err != nil {
-		return makeErr(err, "process")
+		return me(err, "process")
 	}
 
 	// rename
@@ -184,7 +184,7 @@ func Copy(config Config) (ret error) {
 				if name == "init" {
 					src, err := formatNode(decl)
 					if err != nil { //NOCOVER
-						return makeErr(err, "format init func")
+						return me(err, "format init func")
 					}
 					initFuncs.Add(src)
 					continue
@@ -273,7 +273,7 @@ func Copy(config Config) (ret error) {
 				if name == "init" {
 					src, err := formatNode(decl)
 					if err != nil { //NOCOVER
-						return makeErr(err, "format init func")
+						return me(err, "format init func")
 					}
 					if !initFuncs.In(src) { // not duplicated
 						decls = append(decls, decl)
@@ -401,7 +401,7 @@ func Copy(config Config) (ret error) {
 	if config.OutputFile != "" && config.Package == "" { // detect package name
 		buildPkg, err := build.Default.ImportDir(filepath.Dir(config.OutputFile), 0)
 		if err != nil {
-			return makeErr(err, "detect package")
+			return me(err, "detect package")
 		}
 		config.Package = buildPkg.Name
 	}
@@ -418,13 +418,13 @@ func Copy(config Config) (ret error) {
 	}
 	buf := new(bytes.Buffer)
 	if err := format.Node(buf, program.Fset, src); err != nil { //NOCOVER
-		return makeErr(err, "format")
+		return me(err, "format")
 	}
 	var bs []byte
 	if config.Package != "" {
 		bs, err = imports.Process("", buf.Bytes(), nil)
 		if err != nil { //NOCOVER
-			return makeErr(err, "imports")
+			return me(err, "imports")
 		}
 	} else {
 		bs = buf.Bytes()
