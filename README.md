@@ -21,6 +21,10 @@ type Pair struct {
  second T2
 }
 
+func New(first T1, second T2) Pair {
+ return Pair{first, second}
+}
+
 func (p Pair) First() T1 {
  return p.first
 }
